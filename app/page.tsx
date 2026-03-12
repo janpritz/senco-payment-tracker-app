@@ -1,175 +1,114 @@
 "use client";
 
-import { useState } from "react";
-function StatusBadge({ status }: { status: string }) {
-
-  const isPaid = status === "Fully Paid";
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium
-      ${isPaid
-        ? "bg-green-100 text-green-700"
-        : "bg-yellow-100 text-yellow-700"
-      }`}
-    >
-      {isPaid ? "✔ Fully Paid" : "⏳ Installment"}
-    </span>
-  );
-}
+import { useState, useRef } from "react";
+import { PaymentRecord } from "@/types/payment";
+import { fetchStudentRecords } from "@/services/payment";
+import { StatusBadge } from "@/components/statusBadge";
+import { DetailRow } from "@/components/detailRow";
+import { PaymentTable } from "@/components/paymentTable";
+import { formatDate } from "@/utils/formatDate";
 
 export default function Home() {
-
   const [studentId, setStudentId] = useState("");
-  const [student, setStudent] = useState(null);
+  const [history, setHistory] = useState<PaymentRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
-  const API_URL = "https://opensheet.elk.sh/1cHCAgDt2Xf2YXFZ7JPz5IgRhGTTJ-TxD-a0FWql8ppI/1";
+  // Expert Throttle: Tracks the timestamp of the last successful search
+  // useRef doesn't trigger a re-render, making it highly efficient for logic gates.
+  const lastSearchTime = useRef<number>(0);
+  const THROTTLE_LIMIT = 3000; // 5 seconds cooldown
 
-  const [history, setHistory] = useState([]);
+  const latest = history[0];
 
-  const searchStudent = async () => {
+  const handleSearch = async () => {
+    const now = Date.now();
 
+    // 1. Guard: Check for cooldown
+    if (now - lastSearchTime.current < THROTTLE_LIMIT) {
+      console.warn("Too many requests. Please wait.");
+      return;
+    }
+
+    // 2. Guard: Basic validation & existing loading state
+    if (!studentId.trim() || loading) return;
+
+    // Update the ref immediately to block subsequent clicks
+    lastSearchTime.current = now;
+    
     setLoading(true);
     setSearched(true);
 
-    const res = await fetch(API_URL);
-    const data = await res.json();
-
-    const results = data.filter(
-      (item: any) => item["Student ID"] === studentId
-    );
-
-    if (results.length > 0) {
-
-      // Sort by latest timestamp
-      results.sort(
-        (a: any, b: any) => new Date(b.Timestamp).getTime() - new Date(a.Timestamp).getTime()
-      );
-
-      setStudent(results[0]); // latest payment
-      setHistory(results);   // full payment history
-
-    } else {
-
-      setStudent(null);
+    try {
+      const results = await fetchStudentRecords(studentId);
+      setHistory(results);
+    } catch (err) {
       setHistory([]);
-
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-
-      <div className="w-full max-w-md bg-white shadow-lg rounded-2xl p-8">
-
-        <h1 className="text-2xl font-semibold text-gray-800 text-center mb-6">
-          SENCO PAYMENT TRACKER
-        </h1>
-
-        <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder="Enter Student ID"
-            value={studentId}
-            onChange={(e) => setStudentId(e.target.value)}
-            className="flex-1 border border-gray-200 text-gray-800 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-gray-300"
-          />
-
-          <button
-            onClick={searchStudent}
-            className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition"
-          >
-            Check
-          </button>
+    <main className="min-h-screen bg-gray-100 flex items-start justify-center p-4 pt-12">
+      <div className="w-full max-w-md bg-white shadow-2xl rounded-3xl overflow-hidden">
+        <div className="bg-blue-800 p-6 text-white text-center">
+          <h1 className="text-lg font-bold tracking-widest uppercase">
+            Senco Payment Tracker
+          </h1>
         </div>
 
-        {loading && (
-          <p className="text-center text-gray-500 mt-4">
-            Checking payment record...
-          </p>
-        )}
-
-        {student && !loading && (
-          <div className="mt-6 border-t pt-6 space-y-2 text-gray-700">
-
-            <h2 className="text-lg font-medium text-gray-800 mb-2">
-              Student Information
-            </h2>
-
-            <p>
-              <span className="text-gray-500">Name:</span>{" "}
-              {student["First Name"]} {student["Middle Name"]} {student["Last Name"]}
-            </p>
-
-            <p>
-              <span className="text-gray-500">College:</span>{" "}
-              {student["College"]}
-            </p>
-
-            <p>
-              <span className="text-gray-500">Payment:</span> ₱{student["Payment"]}
-            </p>
-
-            <p>
-              <span className="text-gray-500">Balance:</span> ₱{student["Balance"]}
-            </p>
-
-            <p>
-              <span className="text-gray-500">Status:</span>{" "}
-              <StatusBadge status={student["Status"]} />
-            </p>
-
-            <p className="text-sm text-gray-500">
-              Last Payment: {student["Timestamp"]}
-            </p>
-
+        <div className="p-6">
+          <div className="flex gap-2 mb-8">
+            <input
+              className="flex-1 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-800 transition"
+              placeholder="Enter Student ID..."
+              value={studentId}
+              onChange={(e) => setStudentId(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            />
+            <button
+              onClick={handleSearch}
+              disabled={loading}
+              className="bg-blue-800 text-white px-6 rounded-xl font-medium hover:opacity-90 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
+            >
+              {loading ? "..." : "Find"}
+            </button>
           </div>
-        )}
 
-        {history.length > 0 && (
-          <div className="mt-6">
-            <h2 className="text-lg font-medium text-gray-800 mb-3">
-              Payment History
-            </h2>
-            <div className="overflow-hidden border rounded-lg">
-              <table className="w-full text-xs text-gray-800">
-                <thead className="bg-gray-100 text-gray-800">
-                  <tr>
-                    <th className="p-2 text-left">Date</th>
-                    <th className="p-2 text-left">Payment</th>
-                    <th className="p-2 text-left">Balance</th>
-                    <th className="p-2 text-left">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {history.map((item, index) => (
-                    <tr key={index} className="border-t hover:bg-gray-50">
-                      <td className="p-2">{item["Timestamp"]}</td>
-                      <td className="p-2">₱{item["Payment"]}</td>
-                      <td className="p-2">₱{item["Balance"]}</td>
-                      <td className="p-2">
-                        <StatusBadge status={item["Status"]} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {loading ? (
+            <div className="text-center py-12 text-gray-400">Searching database...</div>
+          ) : latest ? (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <h2 className="text-xs font-black text-gray-600 uppercase mb-4 tracking-wider">
+                Student Profile
+              </h2>
+              
+              <div className="space-y-1 bg-gray-50/50 p-4 rounded-2xl border border-gray-100 mb-6">
+                <DetailRow label="Full Name" value={latest.Name} />
+                <DetailRow label="Current Balance" value={`${latest.Balance}`} />
+                <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
+                  <span className="text-gray-500 text-sm">Status</span>
+                  <StatusBadge status={latest.Status} />
+                </div>
+                <DetailRow
+                  label="Last Payment"
+                  value={formatDate(latest["Last Payment"])}
+                />
+              </div>
+
+              <h2 className="text-xs font-black text-gray-600 uppercase mt-8 mb-2 tracking-wider">
+                Payment History
+              </h2>
+              <PaymentTable history={history} />
             </div>
-          </div>
-        )}
-
-        {searched && !student && !loading && (
-          <p className="text-center text-red-500 mt-6">
-            Student not found
-          </p>
-        )}
-
+          ) : searched && (
+            <div className="text-center py-12 bg-red-50 rounded-2xl text-red-500 font-medium">
+              No records found for this ID.
+            </div>
+          )}
+        </div>
       </div>
-
     </main>
   );
 }
