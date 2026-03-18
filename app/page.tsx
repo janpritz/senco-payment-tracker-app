@@ -133,7 +133,7 @@ export default function Home() {
                 <DetailRow label="Student Name" value={studentData.name} />
                 <DetailRow label="Remaining Balance" value={formatCurrency(studentData.balance)} />
                 <div className="flex justify-between items-center py-3 border-b border-blue-100/30 last:border-0">
-                  <span className="text-gray-500 text-xs">Payment Status</span>
+                  <span className="text-gray-500 text-sm">Payment Status</span>
                   <StatusBadge status={studentData.status} />
                 </div>
               </div>
