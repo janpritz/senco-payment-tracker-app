@@ -1,21 +1,18 @@
-import { PaymentRecord } from "@/types/payment";
+import { StudentPayment } from "@/types/payment";
 
-const API_URL = "https://opensheet.elk.sh/1cHCAgDt2Xf2YXFZ7JPz5IgRhGTTJ-TxD-a0FWql8ppI/3";
+export const fetchStudentRecords = async (studentId: string, portalCode: string): Promise<StudentPayment> => {
+  // We now append &portal_code= to the URL
+  const url = `https://script.google.com/macros/s/AKfycbxppx8L8GzMSDQGLjNpxQiDmWUDoP03HJ4LAneIBYz-K_3JLyji3dx80vCXnx9q1HFQ/exec?student_id=${encodeURIComponent(studentId)}&portal_code=${encodeURIComponent(portalCode)}&key=payments.Senco2026`;
 
-export const fetchStudentRecords = async (studentId: string): Promise<PaymentRecord[]> => {
-    const res = await fetch(API_URL);
-    if (!res.ok) throw new Error("Failed to fetch data");
+  const res = await fetch(url, {
+    method: "GET",
+    redirect: "follow", 
+  });
 
-    const data: PaymentRecord[] = await res.json();
-    console.log(data);
+  if (!res.ok) throw new Error("Failed to connect to server");
 
-    // Inside fetchStudentRecords
-    return data
-        .filter((item: any) => item["Student ID"] === studentId)
-        .map((item: any) => ({
-            ...item,
-            // Ensure "Last Payment" exists and is a string
-            "Last Payment": item.Timestamp || "No record",
-        }))
-        .sort((a: any, b: any) => new Date(b.Timestamp).getTime() - new Date(a.Timestamp).getTime());
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+
+  return data;
 };

@@ -1,9 +1,11 @@
-export interface PaymentRecord {
-  Timestamp: string;
-  "Student ID": string;
-  "Name": string;
-  Payment: string | number;
-  Balance: string | number;
-  "Last Payment": string;
-  Status: "Fully Paid" | "Installment";
+import { PaymentHistory } from "@/types/history";
+export interface StudentPayment {
+  student_id: string;
+  name: string;
+  total_paid: number;
+  balance: number;
+  status: "Fully Paid" | "Installment";
+  latest_payment: number;
+  history: PaymentHistory[];
 }
+
