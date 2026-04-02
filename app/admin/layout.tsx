@@ -1,17 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LayoutDashboard, Receipt, Users, RefreshCw, Menu, X } from "lucide-react";
+// 1. Added Wallet icon for the Collection page
+import { LayoutDashboard, Receipt, Users, RefreshCw, Menu, X, Wallet } from "lucide-react";
 import { LogoutButton } from "@/components/logoutButton";
 import { useAdminLogin } from "@/hooks/useAdminLogin";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Toaster } from 'react-hot-toast';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const { state } = useAdminLogin();
     const pathname = usePathname();
     const [role, setRole] = useState<string | null>(null);
-    const [isOpen, setIsOpen] = useState(false); // Mobile sidebar state
+    const [isOpen, setIsOpen] = useState(false);
 
     useEffect(() => {
         const storedUser = localStorage.getItem('admin_user');
@@ -21,7 +23,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         }
     }, [state.user]);
 
-    // Close sidebar automatically when navigating (mobile)
     useEffect(() => {
         setIsOpen(false);
     }, [pathname]);
@@ -30,7 +31,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     return (
         <div className="flex min-h-screen bg-slate-50">
-            {/* 🌑 Mobile Overlay (Only visible when sidebar is open) */}
             {isOpen && (
                 <div 
                     className="fixed inset-0 bg-slate-900/50 z-40 lg:hidden backdrop-blur-sm"
@@ -38,7 +38,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 />
             )}
 
-            {/* 📂 Sidebar */}
             <aside className={`
                 fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-slate-300 flex flex-col transform transition-transform duration-300 ease-in-out
                 ${isOpen ? "translate-x-0" : "-translate-x-full"}
@@ -46,7 +45,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             `}>
                 <div className="p-6 text-white font-bold text-xl border-b border-slate-800 flex items-center justify-between">
                     <span>SENCO <span className="text-blue-400">2026</span></span>
-                    {/* Close button inside sidebar for mobile */}
                     <button className="lg:hidden text-slate-400" onClick={() => setIsOpen(false)}>
                         <X size={24} />
                     </button>
@@ -59,12 +57,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         href="/admin/dashboard" 
                         active={pathname === "/admin/dashboard"} 
                     />
+                    
+                    {/* 2. Added Collection Sidebar Item */}
+                    <SidebarItem 
+                        icon={<Wallet size={20} />} 
+                        label="Collection" 
+                        href="/admin/collection" 
+                        active={pathname === "/admin/collection"} 
+                    />
+
                     <SidebarItem 
                         icon={<Receipt size={20} />} 
                         label="Payments" 
                         href="/admin/payments" 
                         active={pathname === "/admin/payments"} 
                     />
+                    
                     {isAdminOrAdviser && (
                         <SidebarItem 
                             icon={<Users size={20} />} 
@@ -80,11 +88,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </div>
             </aside>
 
-            {/* 🖥️ Main Content */}
             <main className="flex-1 flex flex-col min-w-0">
                 <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30">
                     <div className="flex items-center gap-3">
-                        {/* 🍔 Hamburger Menu for Mobile */}
                         <button 
                             onClick={() => setIsOpen(true)}
                             className="p-2 -ml-2 text-slate-600 lg:hidden hover:bg-slate-100 rounded-lg"
@@ -108,10 +114,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     </div>
                 </header>
                 
-                {/* 🏠 Page View */}
                 <section className="p-4 md:p-8">
                     {children}
                 </section>
+                <Toaster position="top-center" reverseOrder={false} />
             </main>
         </div>
     );
