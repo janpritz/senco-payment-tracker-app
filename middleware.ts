@@ -2,24 +2,42 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  // 1. Check for the admin_token cookie we set in your handleLogin hook
-  const token = request.cookies.get('admin_token')?.value;
-  const isLoginPage = request.nextUrl.pathname === '/admin/login';
+    const token = request.cookies.get('admin_token')?.value;
+    const role = request.cookies.get('admin_role')?.value;
+    const { pathname } = request.nextUrl;
 
-  // 2. REDIRECT: If user is logged in and tries to access /admin/login
-  if (token && isLoginPage) {
-    return NextResponse.redirect(new URL('/admin/dashboard', request.url));
-  }
+    const isLoginPage = pathname === '/admin/login';
 
-  // 3. PROTECTION: If user is NOT logged in and tries to access /admin/* (except login)
-  if (!token && request.nextUrl.pathname.startsWith('/admin') && !isLoginPage) {
-    return NextResponse.redirect(new URL('/admin/login', request.url));
-  }
+    // 1. PUBLIC ACCESS: If not logged in and trying to access admin area
+    if (!token && pathname.startsWith('/admin') && !isLoginPage) {
+        return NextResponse.redirect(new URL('/admin/login', request.url));
+    }
 
-  return NextResponse.next();
+    // 2. AUTHENTICATED REDIRECT: If logged in but hitting the login page
+    if (token && isLoginPage) {
+        return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+    }
+
+    // 3. ROLE-BASED PROTECTION: Block specific URLs for restricted roles
+    const restrictedPaths = ['/admin/payments', '/admin/accounts'];
+    const isTryingToAccessRestricted = restrictedPaths.some(path => pathname.startsWith(path));
+
+    if (isTryingToAccessRestricted) {
+        const hasPermission = role === 'Admin';
+
+        if (!hasPermission) {
+            // Redirect unauthorized users back to the dashboard
+            const url = new URL('/admin/dashboard', request.url);
+            // Optional: add a query param to show a toast on the dashboard
+            url.searchParams.set('error', 'unauthorized');
+            return NextResponse.redirect(url);
+        }
+    }
+
+    return NextResponse.next();
 }
 
-// Ensure this only runs on admin routes to save performance
+// Ensure the middleware only runs on relevant routes
 export const config = {
-  matcher: ['/admin/:path*'],
+    matcher: ['/admin/:path*'],
 };

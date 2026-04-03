@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import api from "@/lib/axios";
 
 export function useAdminLogin() {
@@ -8,7 +7,6 @@ export function useAdminLogin() {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
-    const router = useRouter();
     const [user, setUser] = useState<{ name: string; role: string } | null>(null);
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -17,30 +15,27 @@ export function useAdminLogin() {
         setError("");
 
         try {
-            // STEP 1: The Handshake 🤝
+            // STEP 1: Sanctum CSRF Handshake
             await api.get('/sanctum/csrf-cookie');
 
-            // --- DEBUG: Print CSRF Token to Console ---
-            const cookies = document.cookie.split('; ');
-            const csrfCookie = cookies.find(row => row.startsWith('XSRF-TOKEN='));
-            const csrfToken = csrfCookie ? decodeURIComponent(csrfCookie.split('=')[1]) : 'Not Found';
-
-            console.log("🛠️ CSRF Token acquired:", csrfToken);
-            // ------------------------------------------
-
-            // STEP 2: The Login 🔑
+            // STEP 2: Perform Login
             const response = await api.post('/api/login', { email, password });
+            const userData = response.data.user;
+            const token = response.data.token;
 
-            // 1. Store user data in state
-            setUser(response.data.user);
+            setUser(userData);
 
-            // 2. Persist user data so it survives a page refresh
-            localStorage.setItem('admin_user', JSON.stringify(response.data.user));
+            // STEP 3: Persist for Client-side (UI logic)
+            localStorage.setItem('admin_user', JSON.stringify(userData));
+            localStorage.setItem('admin_token', token);
 
-            localStorage.setItem('admin_token', response.data.token);
+            // STEP 4: Persist for Middleware (Server-side logic)
+            // Setting cookies manually using document.cookie
+            const cookieConfig = "path=/; max-age=604800; SameSite=Lax"; // 7 days
+            document.cookie = `admin_token=${token}; ${cookieConfig}`;
+            document.cookie = `admin_role=${userData.role}; ${cookieConfig}`;
 
-            document.cookie = `admin_token=${response.data.token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
-
+            // Hard redirect to dashboard to ensure middleware triggers
             window.location.href = '/admin/dashboard';
         } catch (err: any) {
             console.error("❌ Login Error:", err);
@@ -53,18 +48,20 @@ export function useAdminLogin() {
     const handleLogout = async () => {
         setLoading(true);
         try {
-            // Hits the Laravel sanctum-protected route
             await api.post('/api/logout');
         } catch (error) {
-            console.error("Session already expired or server unreachable.");
+            console.error("Session already expired.");
         } finally {
-            // Hard cleanup
+            // 1. Clear Local Storage
             localStorage.removeItem('admin_token');
+            localStorage.removeItem('admin_user');
 
-            // Remove cookie for middleware authentication
-            document.cookie = 'admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+            // 2. Clear Cookies (Set expiry to past date)
+            const expireNow = "path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+            document.cookie = `admin_token=; ${expireNow}`;
+            document.cookie = `admin_role=; ${expireNow}`;
 
-            // Redirect using window.location to flush React state entirely
+            // 3. Redirect to login
             window.location.href = '/admin/login';
         }
     };

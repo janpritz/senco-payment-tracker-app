@@ -1,28 +1,54 @@
-import { useState, useEffect } from "react";
+// hooks/useDashboard.ts
+
+import { useState, useEffect, useCallback } from "react";
+import api from "@/lib/axios";
+
+interface DashboardStats {
+    totalCollected: number;
+    expectedTotal: number;
+    totalStudents: number;
+    paidStudents: number;
+    contributionFee: number;
+}
 
 export function useDashboard() {
-  const [stats, setStats] = useState({
-    totalCollected: 0,
-    expectedTotal: 4300000, // Example: 1000 students * 4300
-    totalStudents: 1000,
-    paidStudents: 0
-  });
+    const [stats, setStats] = useState<DashboardStats>({
+        totalCollected: 0,
+        expectedTotal: 0,
+        totalStudents: 0,
+        paidStudents: 0,
+        contributionFee: 0,
+    });
+    const [loading, setLoading] = useState(true);
 
-  const [recentPayments, setRecentPayments] = useState([]);
-  const [loading, setLoading] = useState(true);
+    const fetchDashboard = useCallback(async () => {
+        setLoading(true);
+        try {
+            const { data } = await api.get("/api/admin/dashboard-stats");
+            setStats({
+                ...data.stats,
+                contributionFee: data.contribution_fee
+            });
+        } catch (error) {
+            console.error("Dashboard Sync Error:", error);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
-  useEffect(() => {
-    // Mock Data for now
-    setTimeout(() => {
-      setStats({
-        totalCollected: 1250000,
-        expectedTotal: 4300000,
-        totalStudents: 1000,
-        paidStudents: 285
-      });
-      setLoading(false);
-    }, 800);
-  }, []);
+    const updateGoal = async (newAmount: number) => {
+        try {
+            await api.patch('/api/admin/settings/contribution', { amount: newAmount });
+            // Refresh stats to recalculate totals based on new fee
+            await fetchDashboard();
+        } catch (error) {
+            console.error("Failed to update goal");
+        }
+    };
 
-  return { stats, recentPayments, loading };
+    useEffect(() => {
+        fetchDashboard();
+    }, [fetchDashboard]);
+
+    return { stats, loading, updateGoal, refresh: fetchDashboard };
 }

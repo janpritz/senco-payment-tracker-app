@@ -1,53 +1,40 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import useSWR from "swr";
+import { useState, useEffect } from "react";
+import { db, formatPaymentForDexie } from "@/lib/db";
 import api from "@/lib/axios";
-import { X, Search, User, School, History, CheckCircle2, Loader2, ChevronRight } from "lucide-react";
+import { X, Search, School, History, Loader2, User, CheckCircle2 } from "lucide-react";
+import { toast } from "react-hot-toast";
 
-// 1. Interface
 interface StudentData {
     student_id: string;
     full_name: string;
     college: string;
     course: string;
     balance: number;
-    payment_history: string | null;
 }
 
-// 2. Fetcher helper
-const fetcher = (url: string) => api.get(url).then(res => res.data);
-
 export default function PaymentModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-    // --- Hooks ---
-    const { data: masterlist, isLoading } = useSWR<StudentData[]>('/api/admin/masterlist', fetcher, {
-        revalidateOnFocus: false,
-    });
-
     const [query, setQuery] = useState("");
     const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
     const [amount, setAmount] = useState("");
     const [searchError, setSearchError] = useState("");
+    const [isSearching, setIsSearching] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Slider State
-    const [sliderPos, setSliderPos] = useState(0);
-    const [isSwiped, setIsSwiped] = useState(false);
-    const [isDragging, setIsDragging] = useState(false);
-    const containerRef = useRef<HTMLDivElement>(null);
+    // Constants
+    const BASE_BALANCE = 4000;
 
-    // 3. Updated College Color Coding
-    const getCollegeColor = (college: string) => {
-        const c = college?.toUpperCase() || "";
-        if (c.includes("CITE")) return "bg-emerald-600"; // Green
-        if (c.includes("CASE")) return "bg-blue-600";    // Blue
-        if (c.includes("CCJE")) return "bg-red-600";     // Red
-        if (c.includes("COHME")) return "bg-orange-500"; // Orange
-        return "bg-slate-900"; // Default Fallback
-    };
+    // Logic Validations
+    const numericAmount = parseFloat(amount) || 0;
+    const remainingBalance = selectedStudent?.balance || 0;
+    const isOverLimit = numericAmount > BASE_BALANCE;
+    const isOverRemaining = numericAmount > remainingBalance;
+    const isInvalidAmount = !amount || numericAmount <= 0 || isOverRemaining;
+    const isDisabled = !selectedStudent || isInvalidAmount || isSubmitting;
 
-    // 4. Search Function (Enter to Search)
-    const handleSearch = () => {
-        const cleanQuery = query.trim().toLowerCase();
+    const handleSearch = async () => {
+        const cleanQuery = query.trim();
         setSearchError("");
 
         if (!cleanQuery) {
@@ -55,27 +42,92 @@ export default function PaymentModal({ isOpen, onClose }: { isOpen: boolean; onC
             return;
         }
 
-        if (!masterlist) {
-            setSearchError("Database syncing... please wait.");
-            return;
-        }
+        setIsSearching(true);
+        try {
+            const found = await db.students
+                .where('student_id').equals(cleanQuery)
+                .or('full_name').startsWithIgnoreCase(cleanQuery)
+                .first();
 
-        const found = masterlist.find(s => {
-            const studentId = s?.student_id?.toString().toLowerCase() ?? "";
-            const fullName = s?.full_name?.toLowerCase() ?? "";
-            return studentId === cleanQuery || fullName.includes(cleanQuery);
-        });
+            if (found) {
+                // Calculate current balance based on local payment history
+                const payments = await db.payments
+                    .where('student_id')
+                    .equals(found.student_id)
+                    .toArray();
 
-        if (found) {
-            setSelectedStudent({
-                ...found,
-                balance: Number(found.balance ?? 0)
-            });
-            setSearchError("");
-        } else {
-            setSelectedStudent(null);
-            setSearchError("Student not found.");
+                const totalPaid = payments.reduce(
+                    (sum, p) => sum + (Number(p.amount) || 0),
+                    0
+                );
+
+                const computedBalance = BASE_BALANCE - totalPaid;
+
+                setSelectedStudent({
+                    ...found,
+                    balance: Math.max(0, computedBalance)
+                });
+            } else {
+                setSelectedStudent(null);
+                setSearchError("Student not found in local records.");
+            }
+        } catch (err) {
+            setSearchError("Database error occurred.");
+        } finally {
+            setIsSearching(false);
         }
+    };
+
+    const processPayment = async () => {
+        if (isDisabled || !selectedStudent) return;
+
+        setIsSubmitting(true);
+        try {
+            const payload = {
+                student_id: selectedStudent.student_id,
+                amount: numericAmount,
+            };
+
+            // 1. Save to Laravel API
+            const response = await api.post('/api/admin/payments', payload);
+            const paymentData = response.data.payment || response.data;
+
+            // 2. Format and Save to Local IndexedDB
+            const dexieRecord = {
+                laravel_id: paymentData.id,
+                student_id: String(selectedStudent.student_id),
+                reference_number: String(paymentData.reference_number),
+                amount: Number(paymentData.amount),
+                full_name: selectedStudent.full_name,
+                created_at: paymentData.created_at || new Date().toISOString(),
+                date: paymentData.date || new Date().toISOString().split('T')[0],
+            };
+
+            await db.payments.put(dexieRecord); // .put handles add/update automatically
+
+            toast.success(`Payment recorded! Ref: ${dexieRecord.reference_number}`);
+
+            // 3. Clear local state and close
+            setTimeout(() => {
+                onClose();
+            }, 500);
+
+        } catch (error: any) {
+            console.error("Payment Error:", error);
+            const errorMsg = error.response?.data?.message || "Failed to process payment.";
+            toast.error(errorMsg);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const getCollegeColor = (college: string) => {
+        const c = college?.toUpperCase() || "";
+        if (c.includes("CITE")) return "bg-emerald-600";
+        if (c.includes("CASE")) return "bg-blue-600";
+        if (c.includes("CCJE")) return "bg-red-600";
+        if (c.includes("COHME")) return "bg-orange-500";
+        return "bg-slate-900";
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -85,162 +137,124 @@ export default function PaymentModal({ isOpen, onClose }: { isOpen: boolean; onC
         }
     };
 
-    // --- Drag Logic ---
-    const startDrag = () => { if (!isSwiped && selectedStudent) setIsDragging(true); };
-    const stopDrag = () => { if (!isSwiped) { setIsDragging(false); setSliderPos(0); } };
-
-    const onDrag = (e: any) => {
-        if (!isDragging || isSwiped || !containerRef.current) return;
-        const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
-        const rect = containerRef.current.getBoundingClientRect();
-        const moveX = clientX - rect.left - 24;
-        const maxMove = rect.width - 64;
-        const newPos = Math.max(0, Math.min(moveX, maxMove));
-        setSliderPos(newPos);
-
-        if (newPos >= maxMove - 5) {
-            setIsSwiped(true);
-            setIsDragging(false);
-            setSliderPos(maxMove);
-            // Handle Payment Logic Here
-            console.log("Processing payment for:", selectedStudent?.full_name, "Amount:", amount);
-        }
-    };
-
-    useEffect(() => {
-        if (isDragging) {
-            window.addEventListener('mousemove', onDrag);
-            window.addEventListener('mouseup', stopDrag);
-            window.addEventListener('touchmove', onDrag);
-            window.addEventListener('touchend', stopDrag);
-        }
-        return () => {
-            window.removeEventListener('mousemove', onDrag);
-            window.removeEventListener('mouseup', stopDrag);
-            window.removeEventListener('touchmove', onDrag);
-            window.removeEventListener('touchend', stopDrag);
-        };
-    }, [isDragging]);
-
+    // Reset form when modal closes
     useEffect(() => {
         if (!isOpen) {
             setQuery("");
             setSelectedStudent(null);
             setAmount("");
-            setSliderPos(0);
-            setIsSwiped(false);
             setSearchError("");
+            setIsSubmitting(false);
         }
     }, [isOpen]);
 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
-            {/* Hides the number input up/down buttons */}
-            <style jsx global>{`
-                input::-webkit-outer-spin-button,
-                input::-webkit-inner-spin-button {
-                    -webkit-appearance: none;
-                    margin: 0;
-                }
-                input[type=number] {
-                    -moz-appearance: textfield;
-                }
-            `}</style>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+            <div className="bg-white w-full max-w-4xl rounded-[40px] shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[90vh]">
 
-            <div className="bg-white w-full max-w-3xl rounded-[40px] shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[90vh]">
-
-                <div className="flex-1 p-8 border-r border-slate-50 overflow-y-auto">
-                    <header className="flex justify-between items-center mb-1">
-                        <h2 className="text-l font-black text-slate-900 uppercase tracking-tight">Record Payment</h2>
+                {/* Main Form Area */}
+                <div className="flex-1 p-8 border-r border-slate-100 overflow-y-auto">
+                    <header className="flex justify-between items-center mb-6">
+                        <h2 className="text-lg font-black text-slate-900 uppercase tracking-tight">New Transaction</h2>
                         <button onClick={onClose} className="md:hidden text-slate-400 hover:text-slate-900"><X size={24} /></button>
                     </header>
 
                     <div className="space-y-6">
-                        {/* Search Input */}
+                        {/* Student Lookup */}
                         <div>
                             <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Student Lookup</label>
                             <div className="relative mt-2">
-                                <Search 
-                                    className={`absolute left-4 top-1/2 -translate-y-1/2 cursor-pointer ${isLoading ? 'text-emerald-500 animate-pulse' : 'text-slate-400 hover:text-emerald-600'}`} 
-                                    size={20} 
-                                    onClick={handleSearch}
-                                />
+                                <Search className={`absolute left-4 top-1/2 -translate-y-1/2 ${isSearching ? 'text-emerald-500 animate-pulse' : 'text-slate-400'}`} size={20} />
                                 <input
                                     type="text"
-                                    className="w-full pl-12 pr-4 py-4 bg-slate-50 rounded-2xl font-bold outline-none text-slate-900 focus:ring-2 focus:ring-emerald-500/20"
-                                    placeholder="Enter ID and press Enter..."
+                                    className="w-full pl-12 pr-4 py-4 bg-slate-50 rounded-2xl font-bold outline-none text-slate-900 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                                    placeholder="Enter Student ID or Name..."
                                     value={query}
                                     onChange={(e) => setQuery(e.target.value)}
                                     onKeyDown={handleKeyDown}
                                 />
-                                {isLoading && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-emerald-500" size={18} />}
+                                {isSearching && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-emerald-500" size={18} />}
                             </div>
                             {searchError && <p className="text-red-500 text-[10px] font-black uppercase mt-2 ml-1">{searchError}</p>}
                         </div>
 
-                        {/* Result View */}
                         {selectedStudent && (
                             <div className="space-y-6 animate-in slide-in-from-top-4 duration-300">
-                                <div className={`p-4 rounded-[10px] text-white shadow-xl transition-all duration-500 ${getCollegeColor(selectedStudent.college)}`}>
-                                    <div className="flex items-center gap-2 mb-2 opacity-60">
+                                <div className={`p-5 rounded-2xl text-white shadow-lg transition-all ${getCollegeColor(selectedStudent.college)}`}>
+                                    <div className="flex items-center gap-2 mb-1 opacity-70">
                                         <School size={14} />
                                         <span className="text-[10px] font-black uppercase tracking-widest">{selectedStudent.college}</span>
                                     </div>
-                                    <h3 className="font-black leading-tight mb-1 truncate">{selectedStudent.full_name}</h3>
-                                    <p className="opacity-90 text-xs font-bold uppercase tracking-wider">{selectedStudent.course}</p>
+                                    <h3 className="font-black text-xl leading-tight truncate">{selectedStudent.full_name}</h3>
+                                    <p className="text-[10px] opacity-80 font-bold">{selectedStudent.course}</p>
                                 </div>
 
                                 <div>
-                                    <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Payment Amount (₱)</label>
+                                    <div className="flex justify-between items-center ml-1">
+                                        <label className="text-[10px] font-black uppercase text-slate-400">Payment Amount (₱)</label>
+                                        {isOverLimit && <span className="text-[9px] font-black text-red-500 uppercase animate-pulse">Max Limit: ₱4,000</span>}
+                                    </div>
                                     <input
                                         type="number"
-                                        className="w-full mt-2 px-6 py-5 bg-slate-100 text-slate-900 rounded-2xl font-black text-3xl outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                        className={`w-full mt-2 px-6 py-5 bg-slate-100 text-slate-900 rounded-2xl font-black text-3xl outline-none transition-all ${isOverLimit || isOverRemaining ? 'ring-2 ring-red-500/50 bg-red-50' : 'focus:ring-2 focus:ring-emerald-500/20'}`}
                                         placeholder="0.00"
                                         value={amount}
                                         onChange={(e) => setAmount(e.target.value)}
                                     />
+                                    {isOverRemaining && (
+                                        <p className="text-[10px] font-black text-red-500 mt-2 ml-1">
+                                            Exceeds remaining balance (₱{remainingBalance.toLocaleString()})
+                                        </p>
+                                    )}
                                 </div>
 
-                                {/* Slider Component */}
-                                <div className="relative mt-8">
-                                    <div ref={containerRef} className="h-16 bg-slate-100 rounded-2xl relative flex items-center justify-center overflow-hidden border border-slate-200 select-none">
-                                        <p className={`text-[10px] font-black text-slate-700 uppercase tracking-widest transition-opacity ${sliderPos > 50 ? 'opacity-0' : 'opacity-40'}`}>
-                                            {isSwiped ? "PAYMENT CONFIRMED" : "Slide to Confirm Payment"}
-                                        </p>
-                                        <div
-                                            onMouseDown={startDrag}
-                                            onTouchStart={startDrag}
-                                            className={`absolute left-2 h-12 w-12 rounded-xl flex items-center justify-center shadow-lg z-10 cursor-grab ${isSwiped ? 'bg-emerald-500' : 'bg-slate-900'} text-white`}
-                                            style={{ transform: `translateX(${sliderPos}px)`, transition: isDragging ? 'none' : 'transform 0.3s' }}
-                                        >
-                                            {isSwiped ? <CheckCircle2 size={20} /> : <ChevronRight size={20} />}
-                                        </div>
-                                    </div>
-                                </div>
+                                <button
+                                    onClick={processPayment}
+                                    disabled={isDisabled}
+                                    className={`w-full py-5 rounded-2xl font-black text-white uppercase tracking-widest shadow-xl transition-all flex items-center justify-center gap-3 ${isDisabled
+                                        ? 'bg-slate-200 cursor-not-allowed text-slate-400 shadow-none'
+                                        : 'bg-slate-900 hover:bg-emerald-600 active:scale-[0.98]'
+                                        }`}
+                                >
+                                    {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle2 size={20} />}
+                                    <span>{isSubmitting ? "Processing..." : "Save Payment"}</span>
+                                </button>
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* Sidebar */}
+                {/* Sidebar Info */}
                 <div className="w-full md:w-80 bg-slate-50 p-10 flex flex-col relative">
-                    <button onClick={onClose} className="hidden md:block absolute top-6 right-6 text-slate-300 hover:text-slate-900"><X size={20} /></button>
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2"><History size={14} /> Account Status</h4>
+                    <button onClick={onClose} className="hidden md:block absolute top-6 right-6 text-slate-300 hover:text-slate-900">
+                        <X size={20} />
+                    </button>
+                    
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                        <History size={14} /> Account Status
+                    </h4>
+
                     {selectedStudent ? (
                         <div className="space-y-8 animate-in fade-in">
                             <div>
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Graduation Balance</span>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Current Balance</span>
                                 <p className="text-4xl font-black text-slate-900 mt-1">
-                                    ₱{(selectedStudent.balance ?? 0).toLocaleString()}
+                                    ₱{(Number(selectedStudent.balance) || 0).toLocaleString()}
+                                </p>
+                            </div>
+                            <div className="p-4 bg-white rounded-2xl border border-slate-200">
+                                <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Notice</p>
+                                <p className="text-[11px] font-bold text-slate-600 italic">
+                                    "Confirm physical cash matches input before saving."
                                 </p>
                             </div>
                         </div>
                     ) : (
                         <div className="h-64 flex flex-col items-center justify-center opacity-30 text-center">
                             <User size={48} className="mb-4 text-slate-400" />
-                            <p className="text-[10px] font-black uppercase text-slate-500">Search student<br/>to view details</p>
+                            <p className="text-[10px] font-black uppercase text-slate-500">Search student<br />to view details</p>
                         </div>
                     )}
                 </div>
