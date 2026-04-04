@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Poppins } from 'next/font/google';
+import SyncObserver from '@/components/SyncObserver';
+import { Toaster } from "react-hot-toast";
+import { toast } from "react-hot-toast";
 
 const poppins = Poppins({
   subsets: ['latin'],
@@ -32,6 +35,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       {/* Apply the font class to the body */}
+      <SyncObserver/>
+
       <body className={poppins.className}>{children}</body>
     </html>
   );

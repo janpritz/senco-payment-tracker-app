@@ -3,32 +3,52 @@
 import { useState, useEffect, useCallback } from "react";
 import api from "@/lib/axios";
 
+interface CollegeStat {
+    college: string;
+    total_students: number;
+    fully_paid: number;
+    zero_payments: number;
+    partial_payments: number;
+}
+
 interface DashboardStats {
     totalCollected: number;
+    dailyCollection: number; // Added
     expectedTotal: number;
     totalStudents: number;
-    paidStudents: number;
+    fullyPaidStudents: number;
     contributionFee: number;
+    zeroPaymentStudents: number; // Added
 }
 
 export function useDashboard() {
     const [stats, setStats] = useState<DashboardStats>({
         totalCollected: 0,
+        dailyCollection: 0,
         expectedTotal: 0,
         totalStudents: 0,
-        paidStudents: 0,
+        fullyPaidStudents: 0,
         contributionFee: 0,
+        zeroPaymentStudents: 0,
     });
+    
+    // Move collegeBreakdown into its own state for cleaner access
+    const [collegeBreakdown, setCollegeBreakdown] = useState<CollegeStat[]>([]);
     const [loading, setLoading] = useState(true);
 
     const fetchDashboard = useCallback(async () => {
         setLoading(true);
         try {
             const { data } = await api.get("/api/admin/dashboard-stats");
+            
+            // Sync with Laravel response keys
             setStats({
                 ...data.stats,
                 contributionFee: data.contribution_fee
             });
+            
+            setCollegeBreakdown(data.college_breakdown || []);
+            
         } catch (error) {
             console.error("Dashboard Sync Error:", error);
         } finally {
@@ -50,5 +70,11 @@ export function useDashboard() {
         fetchDashboard();
     }, [fetchDashboard]);
 
-    return { stats, loading, updateGoal, refresh: fetchDashboard };
+    return {
+        stats,
+        collegeBreakdown,
+        loading,
+        updateGoal,
+        refresh: fetchDashboard,
+    };
 }

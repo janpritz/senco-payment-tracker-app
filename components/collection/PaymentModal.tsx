@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { db, formatPaymentForDexie } from "@/lib/db";
+import { db, formatPaymentForDexie, Payment } from "@/lib/db";
 import api from "@/lib/axios";
 import { X, Search, School, History, Loader2, User, CheckCircle2 } from "lucide-react";
 import { toast } from "react-hot-toast";
@@ -81,44 +81,53 @@ export default function PaymentModal({ isOpen, onClose }: { isOpen: boolean; onC
     const processPayment = async () => {
         if (isDisabled || !selectedStudent) return;
 
-        setIsSubmitting(true);
-        try {
-            const payload = {
-                student_id: selectedStudent.student_id,
-                amount: numericAmount,
-            };
+        // 1. Prepare Local Data
+        const localPayment: Payment = {
+            student_id: selectedStudent.student_id,
+            full_name: selectedStudent.full_name,
+            amount: numericAmount,
+            reference_number: `TEMP-${Date.now()}`, // Temporary ref
+            sync_status: 'pending',
+            created_at: new Date().toISOString(),
+            date: new Date().toLocaleString('en-CA', { timeZone: 'Asia/Manila' }).split(',')[0],
+        };
 
-            // 1. Save to Laravel API
-            const response = await api.post('/api/admin/payments', payload);
-            const paymentData = response.data.payment || response.data;
+        const runSync = async () => {
+            // Step A: Save to Dexie immediately (Safety First)
+            const localId = await db.payments.add(localPayment);
 
-            // 2. Format and Save to Local IndexedDB
-            const dexieRecord = {
-                laravel_id: paymentData.id,
-                student_id: String(selectedStudent.student_id),
-                reference_number: String(paymentData.reference_number),
-                amount: Number(paymentData.amount),
-                full_name: selectedStudent.full_name,
-                created_at: paymentData.created_at || new Date().toISOString(),
-                date: paymentData.date || new Date().toISOString().split('T')[0],
-            };
+            try {
+                // Step B: Attempt Laravel API call
+                const response = await api.post('/api/admin/payments', {
+                    student_id: localPayment.student_id,
+                    amount: localPayment.amount,
+                });
 
-            await db.payments.put(dexieRecord); // .put handles add/update automatically
+                const serverData = response.data.payment || response.data;
 
-            toast.success(`Payment recorded! Ref: ${dexieRecord.reference_number}`);
+                // Step C: Update local record with real Server ID and Ref
+                await db.payments.update(localId, {
+                    laravel_id: serverData.id,
+                    reference_number: serverData.reference_number,
+                    sync_status: 'synced'
+                });
 
-            // 3. Clear local state and close
-            setTimeout(() => {
-                onClose();
-            }, 500);
+                return serverData;
+            } catch (error) {
+                // If API fails, it remains 'pending' in Dexie. 
+                // We throw so the toast shows the "Saved Locally" warning.
+                throw error;
+            }
+        };
 
-        } catch (error: any) {
-            console.error("Payment Error:", error);
-            const errorMsg = error.response?.data?.message || "Failed to process payment.";
-            toast.error(errorMsg);
-        } finally {
-            setIsSubmitting(false);
-        }
+        // Fire and forget
+        toast.promise(runSync(), {
+            loading: 'Saving transaction...',
+            success: (data) => `Payment Synced! Ref: ${data.reference_number}`,
+            error: 'Saved locally (Offline). Syncing in background...',
+        });
+
+        onClose(); // Modal closes instantly
     };
 
     const getCollegeColor = (college: string) => {
@@ -198,10 +207,12 @@ export default function PaymentModal({ isOpen, onClose }: { isOpen: boolean; onC
                                     </div>
                                     <input
                                         type="number"
-                                        className={`w-full mt-2 px-6 py-5 bg-slate-100 text-slate-900 rounded-2xl font-black text-3xl outline-none transition-all ${isOverLimit || isOverRemaining ? 'ring-2 ring-red-500/50 bg-red-50' : 'focus:ring-2 focus:ring-emerald-500/20'}`}
+                                        className={`[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none w-full mt-2 px-6 py-5 bg-slate-100 text-slate-900 rounded-2xl font-black text-3xl outline-none transition-all ${isOverLimit || isOverRemaining ? 'ring-2 ring-red-500/50 bg-red-50' : 'focus:ring-2 focus:ring-emerald-500/20'}`}
                                         placeholder="0.00"
                                         value={amount}
                                         onChange={(e) => setAmount(e.target.value)}
+                                        // Prevents incrementing on scroll
+                                        onWheel={(e) => e.target.blur()}
                                     />
                                     {isOverRemaining && (
                                         <p className="text-[10px] font-black text-red-500 mt-2 ml-1">
@@ -231,7 +242,7 @@ export default function PaymentModal({ isOpen, onClose }: { isOpen: boolean; onC
                     <button onClick={onClose} className="hidden md:block absolute top-6 right-6 text-slate-300 hover:text-slate-900">
                         <X size={20} />
                     </button>
-                    
+
                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
                         <History size={14} /> Account Status
                     </h4>

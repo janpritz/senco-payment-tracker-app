@@ -1,5 +1,7 @@
 import { useState } from "react";
 import api from "@/lib/axios";
+import { syncPendingPayments } from "@/lib/syncPayments";
+import { Toaster } from "react-hot-toast";
 
 export function useAdminLogin() {
     const [email, setEmail] = useState("");
@@ -22,6 +24,7 @@ export function useAdminLogin() {
             const response = await api.post('/api/login', { email, password });
             const userData = response.data.user;
             const token = response.data.token;
+            await syncPendingPayments();
 
             setUser(userData);
 

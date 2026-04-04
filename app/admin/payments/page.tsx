@@ -16,6 +16,7 @@ interface PaymentRecord {
     student_id: string;
     full_name: string;
     amount: number;
+    college: string;
     reference_number: string; // Matches Laravel Backend Key
     created_at: string;   // Original ISO string from DB
     time: string;         // Pre-formatted 12h time from Backend
@@ -30,7 +31,8 @@ export default function PaymentsPage() {
     const filtered = payments?.filter(p =>
         p.full_name.toLowerCase().includes(search.toLowerCase()) ||
         p.reference_number.toLowerCase().includes(search.toLowerCase()) ||
-        p.student_id.toLowerCase().includes(search.toLowerCase())
+        p.student_id.toLowerCase().includes(search.toLowerCase()) ||
+        p.college.toLowerCase().includes(search.toLowerCase())
     );
     const formatTime = (dateString: string) => {
         if (!dateString) return "N/A";
@@ -65,9 +67,9 @@ export default function PaymentsPage() {
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
-                    <button className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-blue-600 transition-all">
+                    {/* <button className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-blue-600 transition-all">
                         <Download size={14} /> Export CSV
-                    </button>
+                    </button> */}
                 </div>
             </header>
 
@@ -75,6 +77,7 @@ export default function PaymentsPage() {
                 <table className="w-full text-left">
                     <thead>
                         <tr className="bg-slate-50/50 border-b border-slate-100">
+                            <th className="px-8 py-5 text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">College</th>
                             <th className="px-8 py-5 text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Reference</th>
                             <th className="px-8 py-5 text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Student ID</th>
                             <th className="px-8 py-5 text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Full Name</th>
@@ -85,6 +88,11 @@ export default function PaymentsPage() {
                     <tbody className="divide-y divide-slate-50">
                         {filtered?.map((pay) => (
                             <tr key={pay.id} className="hover:bg-slate-50/80 transition-colors group">
+                                <td className="px-8 py-6">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-slate-900 text-sm tracking-tight">{pay.college}</span>
+                                    </div>
+                                </td>
                                 <td className="px-8 py-6">
                                     <div className="flex items-center gap-3">
                                         <span className="text-slate-900 text-sm tracking-tight">{pay.reference_number}</span>

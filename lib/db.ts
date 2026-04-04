@@ -23,6 +23,7 @@ export interface Payment {
     amount: number;
     created_at: string; // ISO datetime
     date: string; // YYYY-MM-DD (for filtering)
+    sync_status: 'synced' | 'pending';
 }
 
 /**
@@ -78,6 +79,22 @@ export class SencoDatabase extends Dexie {
                     }
                 });
             });
+        
+
+        // Inside SencoDatabase constructor
+        this.version(3) // Increment version
+            .stores({
+                students: 'student_id, full_name, college',
+                payments: `
+            ++id,
+            laravel_id,
+            student_id,
+            reference_number,
+            date,
+            sync_status, 
+            [student_id+date]
+        `
+            });
     }
 
     /**
@@ -104,13 +121,19 @@ export const db = new SencoDatabase();
 export const formatPaymentForDexie = (laravelData: any): Payment => {
     const rawDate = laravelData.created_at || new Date().toISOString();
 
+    const manilaDate = new Date(rawDate).toLocaleString('en-CA', {
+        timeZone: 'Asia/Manila',
+        hour12: false
+    }).split(',')[0];
+
     return {
         laravel_id: laravelData.id,
         student_id: laravelData.student_id,
         full_name: laravelData.full_name || 'Student',
         amount: Number(laravelData.amount),
         reference_number: laravelData.reference_number,
-        date: new Date(rawDate).toISOString().split('T')[0],
-        created_at: rawDate
+        date: manilaDate,
+        created_at: rawDate,
+        sync_status: 'synced'
     };
 };

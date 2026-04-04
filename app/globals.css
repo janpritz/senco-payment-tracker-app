@@ -34,3 +34,15 @@ body {
     scrollbar-width: none;  /* Firefox */
   }
 }
+
+/* Disable arrows for Chrome, Safari, Edge, Opera */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Disable arrows for Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
+}
