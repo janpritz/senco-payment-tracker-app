@@ -19,7 +19,7 @@ export function middleware(request: NextRequest) {
     }
 
     // 3. ROLE-BASED PROTECTION: Block specific URLs for restricted roles
-    const restrictedPaths = ['/admin/payments', '/admin/accounts'];
+    const restrictedPaths = ['/admin/accounts'];
     const isTryingToAccessRestricted = restrictedPaths.some(path => pathname.startsWith(path));
 
     if (isTryingToAccessRestricted) {
@@ -39,5 +39,7 @@ export function middleware(request: NextRequest) {
 
 // Ensure the middleware only runs on relevant routes
 export const config = {
-    matcher: ['/admin/:path*'],
+    matcher: [
+        '/admin/:path*', 
+    ],
 };

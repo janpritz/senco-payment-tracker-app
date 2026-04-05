@@ -3,6 +3,7 @@
 import { useDashboard } from "@/hooks/useDashboard";
 import { TrendingUp, Users, Wallet, CheckCircle, CalendarDays, School, AlertCircle } from "lucide-react";
 import ContributionGoal from "@/components/admin/ContributionGoal";
+import UserCountCard from "@/components/admin/UserCountCard";
 
 export default function DashboardPage() {
   const { stats, loading, updateGoal, collegeBreakdown } = useDashboard();
@@ -88,6 +89,25 @@ export default function DashboardPage() {
             <span className="text-[10px] font-black uppercase tracking-widest text-orange-500">Total Zero Payment</span>
             <p className="text-4xl font-black mt-1">{stats.zeroPaymentStudents}</p>
           </div>
+        </div>
+      </div>
+
+      {/* 4. Individual User Transaction Counts */}
+      <div className="mt-8">
+        <div className="flex items-center gap-2 mb-6">
+          <div className="h-1 w-6 bg-blue-600 rounded-full" />
+          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Collector Performance</h3>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {stats.userTransactions?.map((user: any) => (
+            <UserCountCard
+              key={user.id}
+              userId={user.id}
+              userName={user.name}
+              count={user.transactions_count}
+            />
+          ))}
         </div>
       </div>
     </div>

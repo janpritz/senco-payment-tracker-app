@@ -11,7 +11,7 @@ export function StatusBadge({ status }: { status: string }) {
       }`}
     >
       <span className="mr-1.5">{isPaid ? "✔" : "⏳"}</span>
-      {isPaid ? "Fully Paid" : "Installment"}
+      {isPaid ? "Fully Paid" : "Partially Paid"}
     </span>
   );
 }

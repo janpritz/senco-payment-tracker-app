@@ -8,7 +8,7 @@ import { useAdminLogin } from "@/hooks/useAdminLogin";
 // CORRECT IMPORTS: Component from 'next/link', Hooks from 'next/navigation'
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Toaster } from 'react-hot-toast';
+import { Toaster } from "sonner";
 import api from "@/lib/axios";
 import { toast } from "react-hot-toast"; // Recommended for feedback
 
@@ -24,7 +24,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const handleSync = async () => {
         setIsSyncing(true);
         try {
-            await api.get("/api/admin/masterlist?force=true");
+            await api.get("/api/admin/sync-google-sheets");
             toast.success("Masterlist updated successfully!");
         } catch (error) {
             toast.error("Failed to sync sheets.");
@@ -45,7 +45,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         setIsOpen(false);
     }, [pathname]);
 
-    const isAdminOrAdviser = role === 'Admin' || role === 'Adviser';
+    const isAdmin = role === 'Admin';
 
     return (
         <div className="flex min-h-screen bg-slate-50">
@@ -91,15 +91,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         active={pathname === "/admin/masterlist"}
                     />
 
-                    {isAdminOrAdviser && (<SidebarItem
+                    <SidebarItem
                         icon={<Receipt size={20} />}
                         label="Payments"
                         href="/admin/payments"
                         active={pathname === "/admin/payments"}
                     />
-                    )}
 
-                    {isAdminOrAdviser && (
+                    <SidebarItem
+                        icon={<LayoutDashboard size={20} />}
+                        label="Transactions"
+                        href="/admin/transactions"
+                        active={pathname === "/admin/transactions"}
+                    />
+
+                    {isAdmin && (
                         <SidebarItem
                             icon={<Users size={20} />}
                             label="Accounts"
@@ -130,37 +136,41 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         </h2>
                     </div>
 
+
                     <div className="flex items-center gap-2 md:gap-4">
-                        <button
-                            onClick={handleSync}
-                            disabled={isSyncing}
-                            className={`flex items-center gap-2 text-[10px] px-3 py-1.5 rounded-full font-bold transition-all ${isSyncing
-                                ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                                : "bg-blue-50 text-blue-600 hover:bg-blue-100 active:scale-95"
-                                }`}
-                        >
-                            <RefreshCw
-                                size={14}
-                                className={`hidden sm:block ${isSyncing ? "animate-spin" : ""}`}
-                            />
-                            {isSyncing ? (
-                                "SYNCING..."
-                            ) : (
-                                <>
-                                    SYNC <span className="hidden sm:inline">SHEETS</span>
-                                </>
-                            )}
-                        </button>
+                        {isAdmin && (
+                            <button
+                                onClick={handleSync}
+                                disabled={isSyncing}
+                                className={`flex items-center gap-2 text-[10px] px-3 py-1.5 rounded-full font-bold transition-all ${isSyncing
+                                    ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                                    : "bg-blue-50 text-blue-600 hover:bg-blue-100 active:scale-95"
+                                    }`}
+                            >
+                                <RefreshCw
+                                    size={14}
+                                    className={`hidden sm:block ${isSyncing ? "animate-spin" : ""}`}
+                                />
+                                {isSyncing ? (
+                                    "SYNCING..."
+                                ) : (
+                                    <>
+                                        SYNC <span className="hidden sm:inline">SHEETS</span>
+                                    </>
+                                )}
+                            </button>
+                        )}
                         <div className="h-8 w-8 rounded-full bg-slate-900 flex items-center justify-center text-[10px] text-white font-bold border border-slate-700">
                             {role?.substring(0, 3).toUpperCase() || 'USR'}
                         </div>
                     </div>
+
                 </header>
 
                 <section className="p-4 md:p-8">
                     {children}
                 </section>
-                <Toaster position="top-center" reverseOrder={false} />
+                <Toaster position="top-center" richColors/>
             </main>
         </div>
     );

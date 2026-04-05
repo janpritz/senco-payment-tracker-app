@@ -123,7 +123,7 @@ export default function PaymentModal({ isOpen, onClose }: { isOpen: boolean; onC
         // Fire and forget
         toast.promise(runSync(), {
             loading: 'Saving transaction...',
-            success: (data) => `Payment Synced! Ref: ${data.reference_number}`,
+            success: (data) => `Payment Saved for ${data.full_name}`,
             error: 'Saved locally (Offline). Syncing in background...',
         });
 
@@ -212,7 +212,7 @@ export default function PaymentModal({ isOpen, onClose }: { isOpen: boolean; onC
                                         value={amount}
                                         onChange={(e) => setAmount(e.target.value)}
                                         // Prevents incrementing on scroll
-                                        onWheel={(e) => e.target.blur()}
+                                        onWheel={(e) => (e.target as HTMLInputElement).blur()}
                                     />
                                     {isOverRemaining && (
                                         <p className="text-[10px] font-black text-red-500 mt-2 ml-1">

@@ -19,6 +19,13 @@ interface DashboardStats {
     fullyPaidStudents: number;
     contributionFee: number;
     zeroPaymentStudents: number; // Added
+    userTransactions: UserTransaction[]; // Added
+}
+
+export interface UserTransaction {
+  id: number;
+  name: string;
+  transactions_count: number;
 }
 
 export function useDashboard() {
@@ -30,6 +37,7 @@ export function useDashboard() {
         fullyPaidStudents: 0,
         contributionFee: 0,
         zeroPaymentStudents: 0,
+        userTransactions: [] as UserTransaction[], // Initialize as empty array
     });
     
     // Move collegeBreakdown into its own state for cleaner access
