@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import api from "@/lib/axios";
-// Added Eye and EyeOff icons
 import { Loader2, ShieldAlert, KeyRound, ShieldCheck, Eye, EyeOff } from "lucide-react";
 
-export default function SetupPasswordPage() {
+// 1. Move all your existing logic into this sub-component
+function SetupPasswordContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -32,12 +32,10 @@ export default function SetupPasswordPage() {
                 const response = await api.get(`/api/password/verify/${user}?${params.toString()}`);
 
                 if (response.data.valid) {
-                    // If the account is already active, don't show the form
                     if (response.data.is_active) {
                         router.push("/admin/login");
                         return;
                     }
-
                     setVerifying(false);
                 }
             } catch (err: any) {
@@ -48,6 +46,9 @@ export default function SetupPasswordPage() {
 
         if (searchParams.get("signature")) {
             verifyLink();
+        } else {
+            setVerifying(false);
+            setError("Missing security signature.");
         }
     }, [searchParams, router]);
 
@@ -74,9 +75,8 @@ export default function SetupPasswordPage() {
     }
 
     if (success) {
-        // Trigger redirect after 3 seconds
         setTimeout(() => {
-            router.push("/admin/login"); // or "/admin/login" depending on your route
+            router.push("/admin/login");
         }, 3000);
 
         return (
@@ -90,7 +90,6 @@ export default function SetupPasswordPage() {
                         Your password has been set successfully. <br />
                         Redirecting you to the login page in 3 seconds...
                     </p>
-
                     <button
                         onClick={() => router.push("/admin/login")}
                         className="w-full py-3 px-6 bg-slate-900 text-white font-bold rounded-2xl hover:bg-black transition-all"
@@ -129,7 +128,6 @@ export default function SetupPasswordPage() {
                         setSubmitting(false);
                     }
                 }}>
-                    {/* New Password Field */}
                     <div className="space-y-1.5">
                         <label className="text-[10px] text-slate-900 uppercase font-black tracking-widest ml-1">New Password</label>
                         <div className="relative">
@@ -150,7 +148,6 @@ export default function SetupPasswordPage() {
                         </div>
                     </div>
 
-                    {/* Confirm Password Field */}
                     <div className="space-y-1.5">
                         <label className="text-[10px] text-slate-900 uppercase font-black tracking-widest ml-1">Confirm Password</label>
                         <div className="relative">
@@ -180,5 +177,19 @@ export default function SetupPasswordPage() {
                 </form>
             </div>
         </div>
+    );
+}
+
+// 2. The main export now wraps the content in Suspense
+export default function SetupPasswordPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
+                <Loader2 className="animate-spin text-blue-600 mb-4" size={40} />
+                <p className="text-slate-500 font-bold text-xs uppercase tracking-widest">Loading Account Setup...</p>
+            </div>
+        }>
+            <SetupPasswordContent />
+        </Suspense>
     );
 }
