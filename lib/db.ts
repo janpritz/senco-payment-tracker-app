@@ -23,7 +23,7 @@ export interface Payment {
     amount: number;
     created_at: string; // ISO datetime
     date: string; // YYYY-MM-DD (for filtering)
-    sync_status: 'synced' | 'pending';
+    sync_status: 'synced' | 'pending' | 'failed'; // <--- Ensure this matches
 }
 
 /**
