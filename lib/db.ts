@@ -79,22 +79,13 @@ export class SencoDatabase extends Dexie {
                     }
                 });
             });
-        
+
 
         // Inside SencoDatabase constructor
-        this.version(3) // Increment version
-            .stores({
-                students: 'student_id, full_name, college',
-                payments: `
-            ++id,
-            laravel_id,
-            student_id,
-            reference_number,
-            date,
-            sync_status, 
-            [student_id+date]
-        `
-            });
+        this.version(3).stores({
+            students: 'student_id, full_name, college',
+            payments: '++id, laravel_id, student_id, reference_number, date, sync_status, [student_id+date]'
+        });
     }
 
     /**
@@ -118,20 +109,31 @@ export const db = new SencoDatabase();
 /**
  * FORMATTER: Laravel → Dexie
  */
+/**
+ * FORMATTER: Laravel → Dexie
+ * Uses Intl.DateTimeFormat to ensure a consistent YYYY-MM-DD date 
+ * based on Asia/Manila regardless of the user's system clock.
+ */
 export const formatPaymentForDexie = (laravelData: any): Payment => {
+    // Debug: console.log("Data from Laravel:", laravelData); 
+
     const rawDate = laravelData.created_at || new Date().toISOString();
 
-    const manilaDate = new Date(rawDate).toLocaleString('en-CA', {
+    const manilaDate = new Intl.DateTimeFormat('en-CA', {
         timeZone: 'Asia/Manila',
-        hour12: false
-    }).split(',')[0];
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(new Date(rawDate));
 
     return {
-        laravel_id: laravelData.id,
-        student_id: laravelData.student_id,
-        full_name: laravelData.full_name || 'Student',
+        // Map Laravel's 'id' to Dexie's 'laravel_id'
+        laravel_id: Number(laravelData.id),
+        student_id: String(laravelData.student_id),
+        full_name: laravelData.full_name || 'Unknown Student',
         amount: Number(laravelData.amount),
-        reference_number: laravelData.reference_number,
+        // Ensure this matches the controller key exactly
+        reference_number: laravelData.reference_number || `REF-${laravelData.id}`,
         date: manilaDate,
         created_at: rawDate,
         sync_status: 'synced'

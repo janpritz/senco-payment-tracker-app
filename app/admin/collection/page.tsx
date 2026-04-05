@@ -18,25 +18,31 @@ export default function CollectionPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
-    // Today's date in YYYY-MM-DD for filtering
-    const today = useMemo(() => new Date().toISOString().split("T")[0], []);
-
     /** -----------------------------
-     * 1️⃣ Live Dexie Payments Query
-     * With Pagination (offset/limit)
+     * 1️⃣ Manila-Specific Today Date
      * ----------------------------- */
+    // Inside your CollectionPage component
+    const today = useMemo(() => {
+        return new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Manila',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+        }).format(new Date());
+    }, []);
+
+    // Your Dexie Query remains fast because 'date' is indexed
     const payments = useLiveQuery(
         () => db.payments
             .where("date")
             .equals(today)
-            .reverse()
+            .reverse() // Newest today at the top
             .offset((currentPage - 1) * itemsPerPage)
             .limit(itemsPerPage)
             .toArray(),
         [today, currentPage]
     );
 
-    // Get total count for pagination controls
     const totalCount = useLiveQuery(
         () => db.payments.where("date").equals(today).count(),
         [today]
@@ -57,14 +63,20 @@ export default function CollectionPage() {
 
             await db.transaction("rw", db.payments, async () => {
                 for (const p of formatted) {
+                    // 1. Try to find the record by the Laravel ID index
                     const existing = await db.payments
                         .where("laravel_id")
                         .equals(p.laravel_id!)
                         .first();
 
                     if (existing) {
-                        await db.payments.update(existing.id!, p);
+                        // 2. Update using the Dexie internal ++id
+                        await db.payments.update(existing.id!, {
+                            ...p,
+                            id: existing.id // Keep the same internal ID
+                        });
                     } else {
+                        // 3. Fresh insert
                         await db.payments.add(p);
                     }
                 }
