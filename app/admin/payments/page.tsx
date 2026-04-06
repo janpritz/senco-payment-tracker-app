@@ -83,7 +83,7 @@ export default function PaymentsPage() {
                         <input
                             type="text"
                             placeholder="Search REF# or Name..."
-                            className="pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-blue-500/5 w-64"
+                            className="pl-12 pr-4 py-3 text-slate-600 bg-white border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-blue-500/5 w-64"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />

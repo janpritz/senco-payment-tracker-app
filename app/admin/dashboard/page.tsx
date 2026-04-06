@@ -1,9 +1,10 @@
 "use client";
 
 import { useDashboard } from "@/hooks/useDashboard";
-import { TrendingUp, Users, Wallet, CheckCircle, CalendarDays, School, AlertCircle } from "lucide-react";
+import { TrendingUp, Users, Wallet, CheckCircle, CalendarDays, School, AlertCircle, Clock } from "lucide-react";
 import ContributionGoal from "@/components/admin/ContributionGoal";
 import UserCountCard from "@/components/admin/UserCountCard";
+import ReportGenerator from "@/components/dashboard/ReportGenerator";
 
 export default function DashboardPage() {
   const { stats, loading, updateGoal, collegeBreakdown } = useDashboard();
@@ -21,25 +22,39 @@ export default function DashboardPage() {
       />
 
       {/* 2. Top Stat Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <StatCard
-          title="Today's Collection"
-          value={`₱${(stats.dailyCollection || 0).toLocaleString()}`}
-          icon={<CalendarDays size={20} />}
-          color="emerald"
-        />
-        <StatCard
-          title="Fully Paid"
-          value={stats.fullyPaidStudents}
-          icon={<CheckCircle size={20} />}
-          color="purple"
-        />
-        <StatCard
-          title="Collection Rate"
-          value={`${Math.round((stats.totalCollected / (stats.totalStudents * stats.contributionFee)) * 100) || 0}%`}
-          icon={<TrendingUp size={20} />}
-          color="orange"
-        />
+      <div className="space-y-6">
+        {/* Modular Report Generator Row */}
+        <ReportGenerator />
+
+        {/* Updated Grid: Now 4 columns on large screens */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard
+            title="Today's Collection"
+            value={`₱${(stats.dailyCollection || 0).toLocaleString()}`}
+            icon={<CalendarDays size={20} />}
+            color="emerald"
+          />
+          <StatCard
+            title="Fully Paid"
+            value={stats.fullyPaidStudents}
+            icon={<CheckCircle size={20} />}
+            color="purple"
+          />
+          {/* NEW: Partial Payment Stat */}
+          {/* NEW: Partial Payment Stat */}
+          <StatCard
+            title="Partial Payment"
+            value={stats.partialPaymentStudents || 0} // Pulled from global stats
+            icon={<Clock size={20} />}
+            color="blue"
+          />
+          <StatCard
+            title="Collection Rate"
+            value={`${Math.round((stats.totalCollected / (stats.totalStudents * (stats.contributionFee || 4000))) * 100) || 0}%`}
+            icon={<TrendingUp size={20} />}
+            color="orange"
+          />
+        </div>
       </div>
 
       {/* 3. College Breakdown Section */}
@@ -57,6 +72,7 @@ export default function DashboardPage() {
                   <th className="px-8 py-5">College</th>
                   <th className="px-4 py-5 text-center">Total</th>
                   <th className="px-4 py-5 text-center text-emerald-600">Fully Paid</th>
+                  <th className="px-4 py-5 text-center text-amber-600">Partially Paid</th>
                   <th className="px-4 py-5 text-center text-red-500">Zero Payment</th>
                 </tr>
               </thead>
@@ -70,6 +86,7 @@ export default function DashboardPage() {
                         {item.fully_paid}
                       </span>
                     </td>
+                    <td className="px-4 py-5 text-center font-bold text-slate-600">{item.partial_payments}</td>
                     <td className="px-4 py-5 text-center font-bold text-red-400">{item.zero_payments}</td>
                   </tr>
                 ))}
@@ -114,6 +131,7 @@ export default function DashboardPage() {
   );
 }
 
+// ... Rest of your DashboardSkeleton and StatCard functions stay the same
 
 /**
  * LOADING SKELETON COMPONENT

@@ -72,7 +72,7 @@ export default function MasterlistPage() {
                     <input
                         type="text"
                         placeholder="Search by name or ID..."
-                        className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/5 font-medium transition-all shadow-sm"
+                        className="w-full pl-12 text-slate-600 pr-4 py-3 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/5 font-medium transition-all shadow-sm"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />

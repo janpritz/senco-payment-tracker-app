@@ -79,7 +79,7 @@ export default function ContributionGoal({
                 <div className="flex items-center gap-2 mb-6 text-slate-900">
                     <Settings size={18} className="text-blue-600" />
                     <h3 className="font-black uppercase text-[10px] tracking-widest">
-                        Fee Setting
+                        Graduation Contribution
                     </h3>
                 </div>
 

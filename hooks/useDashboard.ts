@@ -17,6 +17,7 @@ interface DashboardStats {
     expectedTotal: number;
     totalStudents: number;
     fullyPaidStudents: number;
+    partialPaymentStudents: number; // Add this line
     contributionFee: number;
     zeroPaymentStudents: number; // Added
     userTransactions: UserTransaction[]; // Added
@@ -35,6 +36,7 @@ export function useDashboard() {
         expectedTotal: 0,
         totalStudents: 0,
         fullyPaidStudents: 0,
+        partialPaymentStudents: 0,
         contributionFee: 0,
         zeroPaymentStudents: 0,
         userTransactions: [] as UserTransaction[], // Initialize as empty array
