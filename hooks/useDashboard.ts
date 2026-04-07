@@ -49,7 +49,7 @@ export function useDashboard() {
     const fetchDashboard = useCallback(async () => {
         setLoading(true);
         try {
-            const { data } = await api.get("/api/admin/dashboard-stats");
+            const { data } = await api.get("/admin/dashboard-stats");
             
             // Sync with Laravel response keys
             setStats({
@@ -68,7 +68,7 @@ export function useDashboard() {
 
     const updateGoal = async (newAmount: number) => {
         try {
-            await api.patch('/api/admin/settings/contribution', { amount: newAmount });
+            await api.patch('/admin/settings/contribution', { amount: newAmount });
             // Refresh stats to recalculate totals based on new fee
             await fetchDashboard();
         } catch (error) {

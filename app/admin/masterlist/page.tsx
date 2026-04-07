@@ -10,6 +10,7 @@ import {
     ChevronRight
 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
+import { fixEncoding } from "@/lib/utils";
 
 interface Student {
     student_id: string;
@@ -23,7 +24,7 @@ interface Student {
 const fetcher = (url: string) => api.get(url).then(res => res.data);
 
 export default function MasterlistPage() {
-    const { data: students, error, isLoading } = useSWR<Student[]>('/api/admin/students', fetcher);
+    const { data: students, error, isLoading } = useSWR<Student[]>('/admin/students', fetcher);
     const [searchTerm, setSearchTerm] = useState("");
 
     // Pagination State
@@ -106,7 +107,7 @@ export default function MasterlistPage() {
                                                     <UserCheck size={20} />
                                                 </div>
                                                 <div>
-                                                    <p className="font-bold text-slate-900 leading-none mb-1">{student.full_name}</p>
+                                                    <p className="font-bold text-slate-900 leading-none mb-1">{fixEncoding(student.full_name)}</p>
                                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{student.student_id}</p>
                                                 </div>
                                             </div>

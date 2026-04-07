@@ -57,7 +57,7 @@ export default function PaymentModal({ isOpen, onClose }: { isOpen: boolean; onC
 
         const runSync = async () => {
             const localId = await db.payments.add(localPayment);
-            const response = await api.post('/api/admin/payments', { student_id: localPayment.student_id, amount: localPayment.amount });
+            const response = await api.post('/admin/payments', { student_id: localPayment.student_id, amount: localPayment.amount });
             const serverData = response.data.payment || response.data;
             await db.payments.update(localId, { laravel_id: serverData.id, reference_number: serverData.reference_number, sync_status: 'synced' });
             return serverData;

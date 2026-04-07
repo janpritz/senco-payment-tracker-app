@@ -24,7 +24,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const handleSync = async () => {
         setIsSyncing(true);
         try {
-            await api.get("/api/admin/sync-google-sheets");
+            await api.get("/admin/sync-google-sheets");
             toast.success("Masterlist updated successfully!");
         } catch (error) {
             toast.error("Failed to sync sheets.");
@@ -46,6 +46,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }, [pathname]);
 
     const isAdmin = role === 'Admin';
+    const isAdviser = role === 'Adviser';
 
     return (
         <div className="flex min-h-screen bg-slate-50">
@@ -84,12 +85,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         href="/admin/collection"
                         active={pathname === "/admin/collection"}
                     />
-                    <SidebarItem
+                    {isAdmin && <SidebarItem
                         icon={<ClipboardList size={20} />}
                         label="Masterlist"
                         href="/admin/masterlist"
                         active={pathname === "/admin/masterlist"}
-                    />
+                    />}
 
                     <SidebarItem
                         icon={<Receipt size={20} />}
@@ -170,7 +171,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <section className="p-4 md:p-8">
                     {children}
                 </section>
-                <Toaster position="top-center" richColors/>
+                <Toaster position="top-center" richColors />
             </main>
         </div>
     );

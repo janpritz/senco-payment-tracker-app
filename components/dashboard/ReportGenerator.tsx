@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { db } from "@/lib/db";
+import api from "@/lib/axios"; // Use your existing axios instance
 import { Download, Loader2, Calendar, ChevronDown } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast } from "react-hot-toast";
+import { fixEncoding } from "@/lib/utils"; // Import the encoding fix function
 
 export default function ReportGenerator() {
     const [availableDates, setAvailableDates] = useState<string[]>([]);
@@ -13,14 +14,12 @@ export default function ReportGenerator() {
     const [isGenerating, setIsGenerating] = useState(false);
     const [isLoadingDates, setIsLoadingDates] = useState(true);
 
-    // Fetch unique dates from the payments table
+    // 1. Fetch unique dates from the BACKEND
     useEffect(() => {
         const fetchDates = async () => {
             try {
-                const payments = await db.payments.toArray();
-                // Extract unique dates and sort them (newest first)
-                const uniqueDates = Array.from(new Set(payments.map(p => p.date)))
-                    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+                const response = await api.get("/admin/reports/dates");
+                const uniqueDates = response.data;
 
                 setAvailableDates(uniqueDates);
                 if (uniqueDates.length > 0) {
@@ -28,6 +27,7 @@ export default function ReportGenerator() {
                 }
             } catch (error) {
                 console.error("Failed to load dates:", error);
+                toast.error("Could not fetch collection dates.");
             } finally {
                 setIsLoadingDates(false);
             }
@@ -36,16 +36,19 @@ export default function ReportGenerator() {
         fetchDates();
     }, []);
 
+    // ReportGenerator.tsx
+
     const generatePDF = async () => {
         if (!selectedDate) return;
         setIsGenerating(true);
 
         try {
-            // 1. Fetch Data
-            const payments = await db.payments.where("date").equals(selectedDate).toArray();
-            const students = await db.students.toArray();
+            // Destructure grand_total from the response
+            const response = await api.get(`/admin/reports/generate?date=${selectedDate}`);
+            const { stats, transactions, grand_total, summary_list, overall_grand_total } = response.data;
 
-            // 2. Create a hidden Image object to load the local file
+            const doc = new jsPDF();
+
             const loadImage = (url: string): Promise<HTMLImageElement> => {
                 return new Promise((resolve, reject) => {
                     const img = new Image();
@@ -55,69 +58,146 @@ export default function ReportGenerator() {
                 });
             };
 
-            // Load the image from your public folder
             const headerImg = await loadImage('/header_img.png');
-
-            // 3. Initialize PDF
-            const doc = new jsPDF();
-
-            // 4. Add Header Image (using the loaded Image object)
-            // Parameters: image, type, x, y, width, height
             doc.addImage(headerImg, 'PNG', 10, 0, 190, 40);
 
-            // 5. Title and Collector Info
-            doc.setFontSize(12);
+            // --- TITLE SECTION ---
+            const pageWidth = doc.internal.pageSize.getWidth();
+
+            // Main Title: Centered and Larger
+            doc.setFontSize(16);
             doc.setFont("helvetica", "bold");
-            doc.text(`COLLECTION REPORT: ${selectedDate}`, 14, 50);
+            doc.text(`COLLECTION REPORT FOR: ${selectedDate}`, pageWidth / 2, 50, { align: "center" });
 
-            // Get unique collectors from this date's payments
-            // const collectors = Array.from(new Set(payments.map(p => p.full_name || "Admin")));
-            // doc.setFontSize(10);
-            // doc.setFont("helvetica", "normal");
-            // doc.text(`Collected by: ${collectors.join(", ")}`, 10, 56);
+            // Subtitle: Left Aligned and Smaller
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "bold");
+            doc.text(`College Distribution Stats`, 14, 60);
 
-            // 6. Stats Table
+            // Reset text color for the table
+            doc.setTextColor(0);
+
+            // // --- GRAND TOTAL (Added after title) ---
+            // doc.setFontSize(14);
+            // doc.setTextColor(16, 185, 129); // Emerald Green color
+            // doc.text(
+            //     `GRAND TOTAL COLLECTION: P${Number(grand_total).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+            //     14,
+            //     60
+            // );
+
+            // Reset text color for the rest of the doc
+            doc.setTextColor(0, 0, 0);
+
+            // --- STATS TABLE ---
             autoTable(doc, {
-                startY: 55,
-                head: [['College', "Collection", 'Students', 'Paid', 'Zero']],
-                body: ["CITE", "CASE", "CCJE", "COHME"].map(college => {
-                    const collegeStudents = students.filter(s => s.college.includes(college));
-                    const collegePayments = payments.filter(p =>
-                        students.find(s => s.student_id === p.student_id)?.college.includes(college)
-                    );
-                    return [
-                        college,
-                        `P${collegePayments.reduce((sum, p) => sum + p.amount, 0).toLocaleString()}`,
-                        collegeStudents.length,
-                        collegeStudents.filter(s => s.balance <= 0).length,
-                        collegeStudents.filter(s => s.balance === 4000).length
-                    ];
-                }),
-                headStyles: { fillColor: [10, 23, 42] }
+                startY: 65, // Adjusted startY to make room for Grand Total
+                margin: { bottom: 35 },
+                styles: { font: "helvetica", fontStyle: "normal" },
+                head: [['College', "Collection", 'Total Students', 'Paid in Full', 'Partial Payment']],
+                body: stats.map((s: any) => [
+                    s.college,
+                    `P${s.total_collected.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                    s.student_count,
+                    s.paid_in_full,
+                    s.partial_payments,
+                ]),
+                headStyles: { fillColor: [10, 23, 42] },
             });
 
-            // 7. Transaction Table
+            // --- TRANSACTION TABLE ---
             const finalY = (doc as any).lastAutoTable.finalY;
+            doc.setFontSize(12);
             doc.setFont("helvetica", "bold");
-            doc.text("Transaction Details", 14, finalY + 10);
+            doc.text("Payment Details", 14, finalY + 10);
 
             autoTable(doc, {
                 startY: finalY + 15,
-                head: [['Reference Number', 'Student Name', 'College', 'Amount']],
-                body: payments.map(p => [
-                    p.reference_number,
-                    p.full_name,
-                    students.find(s => s.student_id === p.student_id)?.college || "N/A",
-                    `P${p.amount.toLocaleString()}`
+                margin: { bottom: 35 },
+                styles: { font: "helvetica", fontStyle: "normal" },
+                head: [['Ref #', 'Student Name', 'Amount', 'Time', 'Collector']],
+                body: transactions.map((t: any) => [
+                    t.reference_number,
+                    fixEncoding(t.student_name),
+                    `P${Number(t.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                    t.time,
+                    t.collected_by
                 ]),
+                headStyles: { fillColor: [51, 65, 85] },
             });
+
+            // --- FINAL SUMMARY SECTION ---
+            // --- FINAL SUMMARY SECTION ---
+            const afterTransactionsY = (doc as any).lastAutoTable?.finalY || 70;
+
+            // Use the top-level doc.getNumberOfPages() instead of doc.internal
+            if (afterTransactionsY > 200) {
+                doc.addPage();
+                const newTotalPages = doc.getNumberOfPages();
+                doc.setPage(newTotalPages);
+            }
+
+            // Positioning logic for the Summary Title
+            const summaryTitleY = (afterTransactionsY > 200) ? 20 : afterTransactionsY + 20;
+
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(10, 23, 42);
+            doc.text("Collection Summary (All Dates)", 14, summaryTitleY);
+
+            autoTable(doc, {
+                startY: summaryTitleY + 5,
+                head: [['Date', 'Amount Collected']],
+                body: [
+                    ...summary_list.map((item: any) => [
+                        item.date,
+                        `P${Number(item.daily_total).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                    ]),
+                    // Summary Footer Row
+                    [
+                        {
+                            content: 'GRAND TOTAL COLLECTION',
+                            styles: { fontStyle: 'bold', fillColor: [241, 245, 249] }
+                        },
+                        {
+                            content: `P${Number(overall_grand_total).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                            styles: { fontStyle: 'bold', fillColor: [241, 245, 249] }
+                        }
+                    ]
+                ],
+                headStyles: { fillColor: [15, 23, 42] },
+                theme: 'striped',
+            });
+
+            // --- FOOTER LOGIC ---
+            const totalPages = (doc as any).internal.getNumberOfPages();
+            const manilaTime = new Intl.DateTimeFormat('en-US', {
+                timeZone: 'Asia/Manila',
+                dateStyle: 'medium',
+                timeStyle: 'short',
+            }).format(new Date());
+
+            for (let i = 1; i <= totalPages; i++) {
+                doc.setPage(i);
+                const pageWidth = doc.internal.pageSize.width;
+                const pageHeight = doc.internal.pageSize.height;
+
+                doc.setFontSize(8);
+                doc.setFont("helvetica", "italic");
+                doc.setTextColor(150);
+                doc.setDrawColor(230, 230, 230);
+                doc.line(10, pageHeight - 20, pageWidth - 10, pageHeight - 20);
+
+                doc.text(`System Generated Report • ${manilaTime}`, 14, pageHeight - 12);
+                doc.text(`Page ${i} of ${totalPages}`, pageWidth - 30, pageHeight - 12);
+            }
 
             doc.save(`Collection_Report_${selectedDate}.pdf`);
             toast.success("Report generated successfully!");
 
         } catch (error) {
-            console.error("PDF Error:", error);
-            toast.error("Failed to load header image or generate PDF.");
+            console.error(error);
+            toast.error("Error generating report.");
         } finally {
             setIsGenerating(false);
         }

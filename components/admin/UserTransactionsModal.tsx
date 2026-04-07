@@ -20,7 +20,7 @@ export default function UserTransactionsModal({ isOpen, onClose, userId, userNam
   const [page, setPage] = useState(1);
 
   const { data, isValidating } = useSWR(
-    isOpen ? `/api/admin/transactions/user?collected_by=${userId}&search=${search}&page=${page}` : null,
+    isOpen ? `/admin/transactions/user?collected_by=${userId}&search=${search}&page=${page}` : null,
     fetcher,
     { 
       keepPreviousData: true,

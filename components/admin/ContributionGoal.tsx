@@ -31,7 +31,7 @@ export default function ContributionGoal({
         setIsUpdating(true);
         try {
             const amount = parseFloat(goalInput);
-            await api.post('/api/admin/settings/contribution', { amount });
+            await api.post('/admin/settings/contribution', { amount });
             onGoalUpdate(amount);
             toast.success("Contribution goal updated!");
         } catch (error) {

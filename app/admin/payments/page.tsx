@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import UpdatePaymentModal from "@/components/collection/UpdatePaymentModal";
+import { fixEncoding } from "@/lib/utils";
 
 interface PaymentRecord {
     id: string;
@@ -30,7 +31,7 @@ interface PaymentRecord {
 const fetcher = (url: string) => api.get(url).then(res => res.data);
 
 export default function PaymentsPage() {
-    const { data: payments, isLoading } = useSWR<PaymentRecord[]>('/api/admin/payments', fetcher);
+    const { data: payments, isLoading } = useSWR<PaymentRecord[]>('/admin/payments', fetcher);
     const [search, setSearch] = useState("");
     const { state } = useAdminLogin();
     const [role, setRole] = useState<string | null>(null);
@@ -120,7 +121,7 @@ export default function PaymentsPage() {
                                         </span>
                                     </td>
                                     <td className="px-8 py-6">
-                                        <span className="text-slate-900 text-sm">{pay.full_name}</span>
+                                        <span className="text-slate-900 text-sm">{fixEncoding(pay.full_name)}</span>
                                     </td>
                                     <td className="px-8 py-5 text-right">
                                         <div className="flex flex-col items-end">

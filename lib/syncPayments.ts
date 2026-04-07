@@ -16,7 +16,7 @@ export const syncPendingPayments = async () => {
 
     for (const payment of pending) {
         try {
-            const res = await api.post('/api/admin/payments', {
+            const res = await api.post('/admin/payments', {
                 student_id: payment.student_id,
                 amount: payment.amount,
             });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { db, formatPaymentForDexie } from "@/lib/db";
 import { useLiveQuery } from "dexie-react-hooks";
 import useSWR from "swr";
@@ -8,11 +8,20 @@ import api from "@/lib/axios";
 import { Plus, History, User, Wallet, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import PaymentModal from "@/components/collection/PaymentModal";
 import { toast } from "react-hot-toast";
+import { fixEncoding } from "@/lib/utils";
 
 const fetcher = (url: string) => api.get(url).then(res => res.data);
 
 export default function CollectionPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    // 1. Get the user from your auth context or SWR
+    // If you're using SWR to get the current user:
+    const { data: user } = useSWR("/user", fetcher);
+
+    // 2. Define the permission strictly
+    const isAdviser = useMemo(() => {
+        return user?.role?.toLowerCase() === "adviser";
+    }, [user]);
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -33,13 +42,17 @@ export default function CollectionPage() {
 
     // Your Dexie Query remains fast because 'date' is indexed
     const payments = useLiveQuery(
-        () => db.payments
-            .where("date")
-            .equals(today)
-            .reverse() // Newest today at the top
-            .offset((currentPage - 1) * itemsPerPage)
-            .limit(itemsPerPage)
-            .toArray(),
+        async () => {
+            const results = await db.payments
+                .where("date")
+                .equals(today)
+                .toArray();
+
+            // Sort in memory by created_at (Newest First)
+            return results
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+        },
         [today, currentPage]
     );
 
@@ -53,7 +66,7 @@ export default function CollectionPage() {
     /** -----------------------------
      * 2️⃣ Background Sync: Payments
      * ----------------------------- */
-    const { isValidating: syncingPayments } = useSWR("/api/admin/payments", fetcher, {
+    const { isValidating: syncingPayments } = useSWR("/admin/payments", fetcher, {
         refreshInterval: 10_000,
         onSuccess: async (data) => {
             if (!Array.isArray(data)) return;
@@ -87,7 +100,7 @@ export default function CollectionPage() {
     /** -----------------------------
      * 3️⃣ Background Sync: Masterlist
      * ----------------------------- */
-    const { isValidating: syncingMasterlist } = useSWR("/api/admin/students", fetcher, {
+    const { isValidating: syncingMasterlist } = useSWR("/admin/students", fetcher, {
         revalidateOnFocus: false,
         onSuccess: async (data) => {
             if (!Array.isArray(data)) return;
@@ -121,12 +134,15 @@ export default function CollectionPage() {
                     </div>
                 </div>
 
-                <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-black shadow-lg hover:bg-blue-700 active:scale-95 transition-all flex items-center gap-2"
-                >
-                    <Plus size={20} /> NEW PAYMENT
-                </button>
+                {/* --- UPDATED: Conditional Render --- */}
+                {!isAdviser && (
+                    <button
+                        onClick={() => setIsModalOpen(true)}
+                        className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-black shadow-lg hover:bg-blue-700 active:scale-95 transition-all flex items-center gap-2"
+                    >
+                        <Plus size={20} /> NEW PAYMENT
+                    </button>
+                )}
             </header>
 
             {/* Payments Table */}
@@ -160,7 +176,7 @@ export default function CollectionPage() {
                                                 <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
                                                     <User size={14} />
                                                 </div>
-                                                <span className="font-black text-slate-600 text-sm uppercase tracking-tight">{p.full_name}</span>
+                                                <span className="font-black text-slate-600 text-sm uppercase tracking-tight">{fixEncoding(p.full_name)}</span>
                                             </div>
                                         </td>
                                         <td className="px-8 py-5 text-sm font-bold text-slate-400 tabular-nums">{p.student_id}</td>
@@ -209,7 +225,10 @@ export default function CollectionPage() {
                 )}
             </div>
 
-            <PaymentModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+            {/* Also prevent the modal from even being in the DOM for advisers for extra safety */}
+            {!isAdviser && (
+                <PaymentModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+            )}
         </div>
     );
 }

@@ -25,7 +25,7 @@ export default function UpdatePaymentModal() {
         setOldAmount(null);
         try {
             // Change the URL to use a query parameter (?ref=)
-            const res = await api.get(`/api/admin/payments/lookup?ref=${encodeURIComponent(formData.reference_number)}`);
+            const res = await api.get(`/admin/payments/lookup?ref=${encodeURIComponent(formData.reference_number)}`);
             setOldAmount(res.data.amount);
             setStudentName(res.data.student);
         } catch (error) {
@@ -39,8 +39,8 @@ export default function UpdatePaymentModal() {
         e.preventDefault();
         setLoading(true);
         try {
-            await api.patch("/api/admin/payments/update-amount", formData);
-            mutate("/api/admin/payments");
+            await api.patch("/admin/payments/update-amount", formData);
+            mutate("/admin/payments");
             setIsOpen(false);
             resetForm();
             toast.success("Payment updated successfully!");

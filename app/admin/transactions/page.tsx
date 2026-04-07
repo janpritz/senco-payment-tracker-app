@@ -20,7 +20,7 @@ export default function TransactionsPage() {
 
     // Fetching from backend with pagination params
     const { data, error, isValidating } = useSWR(
-        `/api/admin/transactions?page=${page}`, 
+        `/admin/transactions?page=${page}`, 
         fetcher, 
         { keepPreviousData: true }
     );

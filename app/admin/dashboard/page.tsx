@@ -5,6 +5,7 @@ import { TrendingUp, Users, Wallet, CheckCircle, CalendarDays, School, AlertCirc
 import ContributionGoal from "@/components/admin/ContributionGoal";
 import UserCountCard from "@/components/admin/UserCountCard";
 import ReportGenerator from "@/components/dashboard/ReportGenerator";
+import AllTimeStats from "@/components/dashboard/CollegeStatsGrid";
 
 export default function DashboardPage() {
   const { stats, loading, updateGoal, collegeBreakdown } = useDashboard();
@@ -27,7 +28,7 @@ export default function DashboardPage() {
         <ReportGenerator />
 
         {/* Updated Grid: Now 4 columns on large screens */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <StatCard
             title="Today's Collection"
             value={`₱${(stats.dailyCollection || 0).toLocaleString()}`}
@@ -41,13 +42,13 @@ export default function DashboardPage() {
             color="purple"
           />
           {/* NEW: Partial Payment Stat */}
-          {/* NEW: Partial Payment Stat */}
+          {/* NEW: Partial Payment Stat
           <StatCard
             title="Partial Payment"
             value={stats.partialPaymentStudents || 0} // Pulled from global stats
             icon={<Clock size={20} />}
             color="blue"
-          />
+          /> */}
           <StatCard
             title="Collection Rate"
             value={`${Math.round((stats.totalCollected / (stats.totalStudents * (stats.contributionFee || 4000))) * 100) || 0}%`}
@@ -57,6 +58,9 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* All Time College Stats Collected Amount */}
+      <AllTimeStats/>
+    
       {/* 3. College Breakdown Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-white rounded-[40px] border border-slate-200 overflow-hidden shadow-sm">
