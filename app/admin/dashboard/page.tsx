@@ -38,7 +38,7 @@ export default function DashboardPage() {
       {/* 2. Top Stat Grid */}
       <div className="space-y-6">
         {/* Modular Report Generator Row */}
-        {!!isAdviser &&
+        {!isAdviser &&
           (<ReportGenerator />
           )}
 
