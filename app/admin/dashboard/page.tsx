@@ -6,9 +6,22 @@ import ContributionGoal from "@/components/admin/ContributionGoal";
 import UserCountCard from "@/components/admin/UserCountCard";
 import ReportGenerator from "@/components/dashboard/ReportGenerator";
 import AllTimeStats from "@/components/dashboard/CollegeStatsGrid";
+import useSWR from "swr";
+import { useMemo } from "react";
+import api from "@/lib/axios";
+
+const fetcher = (url: string) => api.get(url).then(res => res.data);
 
 export default function DashboardPage() {
   const { stats, loading, updateGoal, collegeBreakdown } = useDashboard();
+
+  // If you're using SWR to get the current user:
+  const { data: user } = useSWR("/user", fetcher);
+
+  // 2. Define the permission strictly
+  const isAdviser = useMemo(() => {
+    return user?.role?.toLowerCase() === "adviser";
+  }, [user]);
 
   if (loading) return <DashboardSkeleton />;
 
@@ -25,7 +38,9 @@ export default function DashboardPage() {
       {/* 2. Top Stat Grid */}
       <div className="space-y-6">
         {/* Modular Report Generator Row */}
-        <ReportGenerator />
+        {!!isAdviser &&
+          (<ReportGenerator />
+          )}
 
         {/* Updated Grid: Now 4 columns on large screens */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -59,8 +74,8 @@ export default function DashboardPage() {
       </div>
 
       {/* All Time College Stats Collected Amount */}
-      <AllTimeStats/>
-    
+      <AllTimeStats />
+
       {/* 3. College Breakdown Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-white rounded-[40px] border border-slate-200 overflow-hidden shadow-sm">
