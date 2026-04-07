@@ -26,7 +26,7 @@ export function useAdminLogin() {
             });
 
             // ✅ STEP 2: Login (correct endpoint)
-            const response = await api.post('/api/v2/login', { email, password });
+            const response = await api.post('/login', { email, password });
 
             const userData = response.data.user;
             const token = response.data.token;
