@@ -104,7 +104,7 @@ export default function ContributionGoal({
                         href="/admin/collection"
                         className="w-full bg-slate-900 hover:bg-blue-600 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 group shadow-xl shadow-slate-200 hover:shadow-blue-500/20 active:scale-[0.98]"
                     >
-                        Start Collecting
+                        Today's Collection
                         <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
                     </Link>
                 </div>

@@ -14,7 +14,6 @@ export default function ReportGenerator() {
     const [isGenerating, setIsGenerating] = useState(false);
     const [isLoadingDates, setIsLoadingDates] = useState(true);
 
-    // 1. Fetch unique dates from the BACKEND
     useEffect(() => {
         const fetchDates = async () => {
             try {
@@ -36,18 +35,16 @@ export default function ReportGenerator() {
         fetchDates();
     }, []);
 
-    // ReportGenerator.tsx
-
     const generatePDF = async () => {
         if (!selectedDate) return;
         setIsGenerating(true);
 
         try {
-            // Destructure grand_total from the response
             const response = await api.get(`/admin/reports/generate?date=${selectedDate}`);
-            const { stats, transactions, grand_total, summary_list, overall_grand_total } = response.data;
+            const { stats, transactions, summary_list, overall_grand_total } = response.data;
 
             const doc = new jsPDF();
+            const pageWidth = doc.internal.pageSize.getWidth();
 
             const loadImage = (url: string): Promise<HTMLImageElement> => {
                 return new Promise((resolve, reject) => {
@@ -58,102 +55,29 @@ export default function ReportGenerator() {
                 });
             };
 
+            // --- HEADER ---
             const headerImg = await loadImage('/header_img.png');
             doc.addImage(headerImg, 'PNG', 10, 0, 190, 40);
 
-            // --- TITLE SECTION ---
-            const pageWidth = doc.internal.pageSize.getWidth();
-
-            // Main Title: Centered and Larger
+            // --- TITLE ---
             doc.setFontSize(16);
             doc.setFont("helvetica", "bold");
             doc.text(`COLLECTION REPORT FOR: ${selectedDate}`, pageWidth / 2, 50, { align: "center" });
 
-            // Subtitle: Left Aligned and Smaller
-            doc.setFontSize(11);
-            doc.setFont("helvetica", "bold");
-            doc.text(`College Distribution Stats`, 14, 60);
-
-            // Reset text color for the table
-            doc.setTextColor(0);
-
-            // // --- GRAND TOTAL (Added after title) ---
-            // doc.setFontSize(14);
-            // doc.setTextColor(16, 185, 129); // Emerald Green color
-            // doc.text(
-            //     `GRAND TOTAL COLLECTION: P${Number(grand_total).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-            //     14,
-            //     60
-            // );
-
-            // Reset text color for the rest of the doc
-            doc.setTextColor(0, 0, 0);
-
-            // --- STATS TABLE ---
-            autoTable(doc, {
-                startY: 65, // Adjusted startY to make room for Grand Total
-                margin: { bottom: 35 },
-                styles: { font: "helvetica", fontStyle: "normal" },
-                head: [['College', "Collection", 'Total Students', 'Paid in Full', 'Partial Payment']],
-                body: stats.map((s: any) => [
-                    s.college,
-                    `P${s.total_collected.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-                    s.student_count,
-                    s.paid_in_full,
-                    s.partial_payments,
-                ]),
-                headStyles: { fillColor: [10, 23, 42] },
-            });
-
-            // --- TRANSACTION TABLE ---
-            const finalY = (doc as any).lastAutoTable.finalY;
+            // --- 1. COLLECTION SUMMARY (ALL DATES) ---
             doc.setFontSize(12);
             doc.setFont("helvetica", "bold");
-            doc.text("Payment Details", 14, finalY + 10);
-
-            autoTable(doc, {
-                startY: finalY + 15,
-                margin: { bottom: 35 },
-                styles: { font: "helvetica", fontStyle: "normal" },
-                head: [['Ref #', 'Student Name', 'Amount', 'Time', 'Collector']],
-                body: transactions.map((t: any) => [
-                    t.reference_number,
-                    fixEncoding(t.student_name),
-                    `P${Number(t.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-                    t.time,
-                    t.collected_by
-                ]),
-                headStyles: { fillColor: [51, 65, 85] },
-            });
-
-            // --- FINAL SUMMARY SECTION ---
-            // --- FINAL SUMMARY SECTION ---
-            const afterTransactionsY = (doc as any).lastAutoTable?.finalY || 70;
-
-            // Use the top-level doc.getNumberOfPages() instead of doc.internal
-            if (afterTransactionsY > 200) {
-                doc.addPage();
-                const newTotalPages = doc.getNumberOfPages();
-                doc.setPage(newTotalPages);
-            }
-
-            // Positioning logic for the Summary Title
-            const summaryTitleY = (afterTransactionsY > 200) ? 20 : afterTransactionsY + 20;
-
-            doc.setFontSize(14);
-            doc.setFont("helvetica", "bold");
             doc.setTextColor(10, 23, 42);
-            doc.text("Collection Summary (All Dates)", 14, summaryTitleY);
+            doc.text("Collection Summary (All Dates)", 14, 62);
 
             autoTable(doc, {
-                startY: summaryTitleY + 5,
+                startY: 65,
                 head: [['Date', 'Amount Collected']],
                 body: [
                     ...summary_list.map((item: any) => [
                         item.date,
                         `P${Number(item.daily_total).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
                     ]),
-                    // Summary Footer Row
                     [
                         {
                             content: 'GRAND TOTAL COLLECTION',
@@ -169,7 +93,49 @@ export default function ReportGenerator() {
                 theme: 'striped',
             });
 
-            // --- FOOTER LOGIC ---
+            // --- 2. COLLEGE DISTRIBUTION STATS ---
+            const statsY = (doc as any).lastAutoTable.finalY + 15;
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "bold");
+            doc.text(`College Distribution Stats`, 14, statsY - 5);
+
+            autoTable(doc, {
+                startY: statsY,
+                margin: { bottom: 35 },
+                styles: { font: "helvetica", fontStyle: "normal" },
+                head: [['College', "Collection", 'Total Students', 'Paid in Full', 'Partial Payment']],
+                body: stats.map((s: any) => [
+                    s.college,
+                    `P${s.total_collected.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                    s.student_count,
+                    s.paid_in_full,
+                    s.partial_payments,
+                ]),
+                headStyles: { fillColor: [10, 23, 42] },
+            });
+
+            // --- 3. PAYMENT DETAILS ---
+            const paymentY = (doc as any).lastAutoTable.finalY + 15;
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "bold");
+            doc.text("Payment Records", 14, paymentY - 5);
+
+            autoTable(doc, {
+                startY: paymentY,
+                margin: { bottom: 35 },
+                styles: { font: "helvetica", fontStyle: "normal" },
+                head: [['Ref #', 'Student Name', 'Amount', 'Time', 'Collector']],
+                body: transactions.map((t: any) => [
+                    t.reference_number,
+                    fixEncoding(t.student_name),
+                    `P${Number(t.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                    t.time,
+                    t.collected_by
+                ]),
+                headStyles: { fillColor: [51, 65, 85] },
+            });
+
+            // --- FOOTER ---
             const totalPages = (doc as any).internal.getNumberOfPages();
             const manilaTime = new Intl.DateTimeFormat('en-US', {
                 timeZone: 'Asia/Manila',
@@ -179,17 +145,17 @@ export default function ReportGenerator() {
 
             for (let i = 1; i <= totalPages; i++) {
                 doc.setPage(i);
-                const pageWidth = doc.internal.pageSize.width;
-                const pageHeight = doc.internal.pageSize.height;
+                const pWidth = doc.internal.pageSize.width;
+                const pHeight = doc.internal.pageSize.height;
 
                 doc.setFontSize(8);
                 doc.setFont("helvetica", "italic");
                 doc.setTextColor(150);
                 doc.setDrawColor(230, 230, 230);
-                doc.line(10, pageHeight - 20, pageWidth - 10, pageHeight - 20);
+                doc.line(10, pHeight - 20, pWidth - 10, pHeight - 20);
 
-                doc.text(`System Generated Report • ${manilaTime}`, 14, pageHeight - 12);
-                doc.text(`Page ${i} of ${totalPages}`, pageWidth - 30, pageHeight - 12);
+                doc.text(`System Generated Report • ${manilaTime}`, 14, pHeight - 12);
+                doc.text(`Page ${i} of ${totalPages}`, pWidth - 30, pHeight - 12);
             }
 
             doc.save(`Collection_Report_${selectedDate}.pdf`);
