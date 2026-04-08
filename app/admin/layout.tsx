@@ -85,7 +85,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         href="/admin/collection"
                         active={pathname === "/admin/collection"}
                     />
-                    {isAdmin && <SidebarItem
+                    {!isAdviser && <SidebarItem
                         icon={<ClipboardList size={20} />}
                         label="Masterlist"
                         href="/admin/masterlist"
