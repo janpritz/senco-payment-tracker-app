@@ -1,5 +1,5 @@
 import { useState } from "react";
-import api from "@/lib/axios"; // Use your configured instance for BOTH steps
+import api from "@/lib/api"; // Use your configured instance for BOTH steps
 import { syncPendingPayments } from "@/lib/syncPayments";
 
 export function useAdminLogin() {
