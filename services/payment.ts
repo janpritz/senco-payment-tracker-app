@@ -6,7 +6,7 @@ export const fetchStudentRecords = async (studentId: string, portalCode: string)
   try {
     // We hit our own Laravel API instead of the Google Script
     // Parameters are passed as a query string
-    const response = await api.get<StudentPayment>(`/api/student/records`, {
+    const response = await api.get<StudentPayment>(`/student/records`, {
       params: {
         student_id: studentId,
         portal_code: portalCode,

@@ -1,4 +1,8 @@
-// components/portal/PortalDashboard.tsx
+"use client";
+
+import { useEffect } from "react";
+import confetti from "canvas-confetti";
+
 import { StudentPayment } from "@/types/payment";
 import { DetailRow } from "@/components/detailRow";
 import { StatusBadge } from "@/components/statusBadge";
@@ -11,11 +15,30 @@ interface DashboardProps {
 }
 
 export function PortalDashboard({ data, onLogout }: DashboardProps) {
+
+  useEffect(() => {
+    if (data.account_status === "Fully Paid") {
+      // Fire confetti 🎉
+      confetti({
+        particleCount: 120,
+        spread: 70,
+        origin: { y: 0.6 },
+      });
+    }
+  }, [data.account_status]);
+
   return (
     <div className="animate-in slide-in-from-bottom-8 duration-500">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xs font-black text-gray-600 uppercase tracking-wider">Account Overview</h2>
-        <button onClick={onLogout} className="text-[10px] font-bold text-blue-800 hover:underline">Logout</button>
+        <h2 className="text-xs font-black text-gray-600 uppercase tracking-wider">
+          Account Overview
+        </h2>
+        <button
+          onClick={onLogout}
+          className="text-[10px] font-bold text-blue-800 hover:underline"
+        >
+          Logout
+        </button>
       </div>
 
       <div className="space-y-1 bg-blue-50/50 p-5 rounded-[2rem] border border-blue-100/50 mb-8">
@@ -27,13 +50,18 @@ export function PortalDashboard({ data, onLogout }: DashboardProps) {
         </div>
       </div>
 
-      <h2 className="text-xs font-black text-gray-600 uppercase mb-4 tracking-wider">Payment History</h2>
+      <h2 className="text-xs font-black text-gray-600 uppercase mb-4 tracking-wider">
+        Payment History
+      </h2>
       <PaymentTable history={data.history || []} />
-      
+
       <footer className="mt-8 pt-6 border-t border-gray-100 text-center">
         <p className="text-[10px] text-gray-400 tracking-wider uppercase font-medium">
-          © {new Date().getFullYear()} SENCO Payment Tracker<br />
-          <span className="text-[9px] opacity-70">Abuyog Community College - SENCO FINANCE COMMITTEE</span>
+          © {new Date().getFullYear()} SENCO Payment Tracker
+          <br />
+          <span className="text-[9px] opacity-70">
+            Abuyog Community College - SENCO FINANCE COMMITTEE
+          </span>
         </p>
       </footer>
     </div>

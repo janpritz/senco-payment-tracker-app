@@ -95,15 +95,13 @@ export default function AllTimeStats() {
                                 <div className={`text-[10px] font-black px-2 py-1 bg-slate-100 rounded-md text-slate-600 transition-colors uppercase ${style.bg} ${style.text}`}>
                                     {item.college}
                                 </div>
-                                <ArrowUpRight size={16} className={`text-slate-300 transition-colors ${style.text}`} />
+                                {/* <ArrowUpRight size={16} className={`text-slate-300 transition-colors ${style.text}`} /> */}
                             </div>
 
                             <p className="text-slate-400 text-[10px] font-bold uppercase tracking-tight">All-Time Collection</p>
                             <h3 className="text-xl font-black text-slate-900 mb-4">
                                 ₱{(item.total_collected ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                             </h3>
-
-                            
                         </div>
                     );
                 })}
