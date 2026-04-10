@@ -146,44 +146,54 @@ export default function PaymentsPage() {
                 </div>
 
                 {/* Pagination Controls */}
+                {!isLoading && filtered.length > 0 && (
                 <div className="px-8 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                        Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filtered.length)} of {filtered.length}
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        {startIndex + 1}—{Math.min(startIndex + itemsPerPage, filtered.length)} <span className="mx-2 text-slate-200">/</span> {filtered.length} Students
                     </p>
+
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                             disabled={currentPage === 1}
-                            className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                         >
-                            <ChevronLeft size={18} className="text-slate-600" />
+                            <ChevronLeft size={16} className="text-slate-600" />
                         </button>
-                        
+
                         <div className="flex items-center gap-1">
-                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                                <button
-                                    key={page}
-                                    onClick={() => setCurrentPage(page)}
-                                    className={`w-9 h-9 rounded-xl text-xs font-black transition-all ${
-                                        currentPage === page 
-                                        ? "bg-blue-600 text-white shadow-lg shadow-blue-200" 
-                                        : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
-                                    }`}
-                                >
-                                    {page}
-                                </button>
-                            ))}
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                                // Logic to show only a few pages if there are many
+                                if (totalPages > 5 && Math.abs(currentPage - page) > 1 && page !== 1 && page !== totalPages) {
+                                    if (page === 2 || page === totalPages - 1) return <span key={page} className="px-1 text-slate-300">...</span>;
+                                    return null;
+                                }
+
+                                return (
+                                    <button
+                                        key={page}
+                                        onClick={() => setCurrentPage(page)}
+                                        className={`w-8 h-8 rounded-xl text-[10px] font-black transition-all ${currentPage === page
+                                            ? "bg-slate-900 text-white shadow-md shadow-slate-200"
+                                            : "bg-white border border-slate-200 text-slate-500 hover:bg-slate-50"
+                                            }`}
+                                    >
+                                        {page}
+                                    </button>
+                                );
+                            })}
                         </div>
 
                         <button
                             onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                             disabled={currentPage === totalPages}
-                            className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                         >
-                            <ChevronRight size={18} className="text-slate-600" />
+                            <ChevronRight size={16} className="text-slate-600" />
                         </button>
                     </div>
                 </div>
+                )}
             </div>
         </div>
     );

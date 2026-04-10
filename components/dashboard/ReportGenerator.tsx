@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import api from "@/lib/axios"; // Use your existing axios instance
+import api from "@/lib/axios";
 import { Download, Loader2, Calendar, ChevronDown } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast } from "react-hot-toast";
-import { fixEncoding } from "@/lib/utils"; // Import the encoding fix function
+import { fixEncoding } from "@/lib/utils";
 
 export default function ReportGenerator() {
     const [availableDates, setAvailableDates] = useState<string[]>([]);
@@ -20,18 +20,15 @@ export default function ReportGenerator() {
                 const response = await api.get("/admin/reports/dates");
                 const uniqueDates = response.data;
 
+                // We keep "all" as the default or first option
                 setAvailableDates(uniqueDates);
-                if (uniqueDates.length > 0) {
-                    setSelectedDate(uniqueDates[0]);
-                }
+                setSelectedDate("all"); // Set All-Time as default
             } catch (error) {
                 console.error("Failed to load dates:", error);
-                toast.error("Could not fetch collection dates.");
             } finally {
                 setIsLoadingDates(false);
             }
         };
-
         fetchDates();
     }, []);
 
@@ -41,7 +38,7 @@ export default function ReportGenerator() {
 
         try {
             const response = await api.get(`/admin/reports/generate?date=${selectedDate}`);
-            const { stats, transactions, summary_list, overall_grand_total } = response.data;
+            const { stats, transactions, summary_list, overall_grand_total, selected_date } = response.data;
 
             const doc = new jsPDF();
             const pageWidth = doc.internal.pageSize.getWidth();
@@ -57,18 +54,18 @@ export default function ReportGenerator() {
 
             // --- HEADER ---
             const headerImg = await loadImage('/header_img.png');
-            doc.addImage(headerImg, 'PNG', 10, 0, 190, 40);
+            doc.addImage(headerImg, 'PNG', 5, 7, 200, 35);
 
             // --- TITLE ---
-            doc.setFontSize(16);
+            doc.setFontSize(14);
             doc.setFont("helvetica", "bold");
-            doc.text(`COLLECTION REPORT FOR: ${selectedDate}`, pageWidth / 2, 50, { align: "center" });
+            doc.text(`COLLECTION SUMMARY REPORT`, pageWidth / 2, 45, { align: "center" });
 
-            // --- 1. COLLECTION SUMMARY (ALL DATES) ---
+            // --- 1. COLLECTION SUMMARY ---
             doc.setFontSize(12);
             doc.setFont("helvetica", "bold");
             doc.setTextColor(10, 23, 42);
-            doc.text("Collection Summary (All Dates)", 14, 62);
+            doc.text("Collection Dates", 14, 62);
 
             autoTable(doc, {
                 startY: 65,
@@ -114,26 +111,129 @@ export default function ReportGenerator() {
                 headStyles: { fillColor: [10, 23, 42] },
             });
 
-            // --- 3. PAYMENT DETAILS ---
-            const paymentY = (doc as any).lastAutoTable.finalY + 15;
-            doc.setFontSize(12);
-            doc.setFont("helvetica", "bold");
-            doc.text("Payment Records", 14, paymentY - 5);
+            // --- 3. SEPARATED PAYMENT RECORDS PER COLLEGE ---
+            const colleges = Array.from(new Set(transactions.map((t: any) => t.college)));
+            let currentY = (doc as any).lastAutoTable.finalY + 10;
 
-            autoTable(doc, {
-                startY: paymentY,
-                margin: { bottom: 35 },
-                styles: { font: "helvetica", fontStyle: "normal" },
-                head: [['Ref #', 'Student Name', 'Amount', 'Time', 'Collector']],
-                body: transactions.map((t: any) => [
-                    t.reference_number,
-                    fixEncoding(t.student_name),
-                    `P${Number(t.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-                    t.time,
-                    t.collected_by
-                ]),
-                headStyles: { fillColor: [51, 65, 85] },
+            colleges.forEach((collegeName: any) => {
+                if (currentY > 240) {
+                    doc.addPage();
+                    currentY = 20;
+                }
+
+                doc.setFontSize(12);
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(10, 23, 42);
+                doc.text(`Payment Records: ${collegeName}`, 14, currentY);
+
+                const collegeTransactions = transactions.filter((t: any) => t.college === collegeName);
+
+                autoTable(doc, {
+                    startY: currentY + 2,
+                    margin: { bottom: 30 },
+                    styles: { font: "helvetica", fontStyle: "normal", fontSize: 9 },
+                    head: [['Ref #', 'Student Name', 'Amount', 'Time', 'Collector']],
+                    body: [
+                        ...collegeTransactions.map((t: any) => [
+                            t.reference_number,
+                            fixEncoding(t.student_name),
+                            `P${Number(t.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                            t.time,
+                            t.collected_by
+                        ]),
+                        [
+                            {
+                                content: '******** Nothing Follows ********',
+                                colSpan: 5,
+                                styles: {
+                                    halign: 'center',
+                                    fontStyle: 'italic',
+                                    // --- CHANGED TO RED ---
+                                    textColor: [220, 38, 38],
+                                    fontSize: 9,
+                                    fillColor: [250, 250, 250]
+                                }
+                            }
+                        ]
+                    ],
+                    headStyles: { fillColor: [51, 65, 85] },
+                });
+
+                currentY = (doc as any).lastAutoTable.finalY + 15;
             });
+
+            // --- SIGNATORIES SECTION ---
+            let finalY = (doc as any).lastAutoTable.finalY + 20;
+
+            // Page break check for signatories
+            if (finalY > 180) {
+                doc.addPage();
+                finalY = 25;
+            }
+
+            doc.setTextColor(0);
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "bold");
+            doc.text("Reviewed by:", 14, finalY);
+
+            finalY += 12;
+            doc.setFontSize(8.5);
+
+            // 4-column layout for Reviewed By
+            const colWidth = (pageWidth - 28) / 4;
+            const c1 = 14;
+            const c2 = c1 + colWidth;
+            const c3 = c2 + colWidth;
+            const c4 = c3 + colWidth;
+
+            // Row: Names
+            doc.text("MARJORIE A. ARCHIN", c1, finalY);
+            doc.text("LORRAINE C. SUPERABLE", c2, finalY);
+            doc.text("CHRISTINE T. REALINO", c3, finalY);
+            doc.text("JOHN MICHAEL E. KIMNO", c4, finalY);
+
+            finalY += 4;
+            doc.setFont("helvetica", "normal");
+            doc.text("SENCO, President", c1, finalY);
+            doc.text("SENCO, Treasurer", c2, finalY);
+            doc.text("SENCO, Auditor", c3, finalY);
+            doc.text("SENCO, Auditor", c4, finalY);
+
+            // Noted By
+            finalY += 15;
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(10);
+            doc.text("Noted by:", 14, finalY);
+
+            finalY += 12;
+            doc.setFontSize(8.5);
+            const nColWidth = (pageWidth - 28) / 3;
+            const nc1 = 14;
+            const nc2 = nc1 + nColWidth;
+            const nc3 = nc2 + nColWidth;
+
+            doc.text("ROBERT JOHN NOVIO", nc1, finalY);
+            doc.text("MARIAN JOY C. BRILLO", nc2, finalY);
+            doc.text("ARYANNE QUERQUEZ-ELMIDO", nc3, finalY);
+
+            finalY += 4;
+            doc.setFont("helvetica", "normal");
+            doc.text("SENCO, Adviser", nc1, finalY);
+            doc.text("SENCO, Adviser", nc2, finalY);
+            doc.text("SENCO, Adviser", nc3, finalY);
+
+            // Approved By
+            finalY += 15;
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(10);
+            doc.text("Approved by:", 14, finalY);
+
+            finalY += 12;
+            doc.text("CLEMELLE L. MONTALLANA, DM, CESE", 14, finalY);
+            finalY += 4;
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(8.5);
+            doc.text("College President", 14, finalY);
 
             // --- FOOTER ---
             const totalPages = (doc as any).internal.getNumberOfPages();
@@ -147,13 +247,11 @@ export default function ReportGenerator() {
                 doc.setPage(i);
                 const pWidth = doc.internal.pageSize.width;
                 const pHeight = doc.internal.pageSize.height;
-
                 doc.setFontSize(8);
                 doc.setFont("helvetica", "italic");
                 doc.setTextColor(150);
                 doc.setDrawColor(230, 230, 230);
                 doc.line(10, pHeight - 20, pWidth - 10, pHeight - 20);
-
                 doc.text(`System Generated Report • ${manilaTime}`, 14, pHeight - 12);
                 doc.text(`Page ${i} of ${totalPages}`, pWidth - 30, pHeight - 12);
             }
@@ -176,22 +274,28 @@ export default function ReportGenerator() {
                     <Calendar size={20} />
                 </div>
                 <div className="flex-1">
-                    <p className="text-[10px] font-black uppercase text-slate-600 mb-0.5 ml-1">Available Collection Dates</p>
+                    <p className="text-[10px] font-black uppercase text-slate-600 mb-0.5 ml-1">Report Timeframe</p>
                     <div className="relative">
                         <select
                             value={selectedDate}
                             onChange={(e) => setSelectedDate(e.target.value)}
-                            disabled={isLoadingDates || availableDates.length === 0}
+                            disabled={isLoadingDates}
                             className="w-full appearance-none bg-slate-200 border-none text-sm font-black text-slate-900 py-2 px-3 rounded-lg focus:ring-2 focus:ring-emerald-500/20 outline-none cursor-pointer disabled:opacity-50"
                         >
                             {isLoadingDates ? (
-                                <option>Loading dates...</option>
-                            ) : availableDates.length > 0 ? (
-                                availableDates.map(date => (
-                                    <option key={date} value={date}>{date}</option>
-                                ))
+                                <option>Loading records...</option>
                             ) : (
-                                <option>No collections recorded</option>
+                                <>
+                                    {availableDates.length > 0 && (
+                                        <option value="all">ALL-TIME SUMMARY</option>
+                                    )}
+                                    {availableDates.map(date => (
+                                        <option key={date} value={date}>{date}</option>
+                                    ))}
+                                    {availableDates.length === 0 && (
+                                        <option>No collections recorded</option>
+                                    )}
+                                </>
                             )}
                         </select>
                         <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />

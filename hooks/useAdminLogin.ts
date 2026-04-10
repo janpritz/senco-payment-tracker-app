@@ -1,10 +1,6 @@
 import { useState } from "react";
-import axios from "axios";
-import api from "@/lib/axios";
+import api from "@/lib/axios"; // Use your configured instance for BOTH steps
 import { syncPendingPayments } from "@/lib/syncPayments";
-
-const BASE_URL = "https://api.accsangkaychatbot.com";
-//const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://localhost:8000"; // Adjust this to match your Laravel API URL
 
 export function useAdminLogin() {
     const [email, setEmail] = useState("");
@@ -20,13 +16,13 @@ export function useAdminLogin() {
         setError("");
 
         try {
-            // ✅ STEP 1: CSRF (use axios NOT api)
-            await axios.get(`${BASE_URL}/sanctum/csrf-cookie`, {
-                withCredentials: true,
-            });
+            // ✅ STEP 1: CSRF Handshake
+            // Use 'api' so that the instance sharing the session gets the cookie
+            await api.get('/sanctum/csrf-cookie');
 
-            // ✅ STEP 2: Login (correct endpoint)
-            const response = await api.post('/login', { email, password });
+            // ✅ STEP 2: Login
+            // Ensure this matches your route: /api/v2/login or /login
+            const response = await api.post('/api/v2/login', { email, password });
 
             const userData = response.data.user;
             const token = response.data.token;
@@ -36,21 +32,24 @@ export function useAdminLogin() {
 
             setUser(userData);
 
-            // ✅ STEP 3: Local storage
+            // ✅ STEP 3: Storage
             localStorage.setItem('admin_user', JSON.stringify(userData));
             localStorage.setItem('admin_token', token);
 
-            // ✅ STEP 4: Cookies for middleware
+            // ✅ STEP 4: Cookies
             const cookieConfig = "path=/; max-age=604800; SameSite=Lax";
             document.cookie = `admin_token=${token}; ${cookieConfig}`;
             document.cookie = `admin_role=${userData.role}; ${cookieConfig}`;
 
-            // ✅ Redirect
             window.location.href = '/admin/dashboard';
 
         } catch (err: any) {
             console.error("❌ Login Error:", err);
-            setError(err.response?.data?.message || "Login failed. Please check credentials.");
+            // Handle 419 (CSRF Mismatch) vs 401 (Wrong Credentials)
+            const message = err.response?.status === 419 
+                ? "Session expired. Please refresh and try again." 
+                : (err.response?.data?.message || "Login failed.");
+            setError(message);
         } finally {
             setLoading(false);
         }
