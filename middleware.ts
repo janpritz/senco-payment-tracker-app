@@ -3,35 +3,51 @@ import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
     const token = request.cookies.get('admin_token')?.value;
-    const role = request.cookies.get('admin_role')?.value; // e.g., "Adviser", "Admin", "Super Admin"
+    const role = request.cookies.get('admin_role')?.value; 
     const { pathname } = request.nextUrl;
 
     const isLoginPage = pathname === '/admin/login';
+    const isPublicDisplay = pathname === '/queue/display';
 
     // 1. PUBLIC ACCESS
-    if (!token && pathname.startsWith('/admin') && !isLoginPage) {
-        return NextResponse.redirect(new URL('/admin/login', request.url));
+    // Allow anyone to see the queue display without a token
+    if (isPublicDisplay) {
+        return NextResponse.next();
     }
 
-    // 2. AUTHENTICATED REDIRECT
+    // 2. GUEST CHECK
+    // If no token, and trying to access protected queue or admin paths
+    if (!token && !isLoginPage) {
+        if (pathname.startsWith('/admin') || pathname.startsWith('/queue')) {
+            return NextResponse.redirect(new URL('/admin/login', request.url));
+        }
+    }
+
+    // 3. AUTHENTICATED REDIRECT (Login Page logic)
     if (token && isLoginPage) {
+        if (role === 'Staff') {
+            return NextResponse.redirect(new URL('/queue/register', request.url));
+        }
         return NextResponse.redirect(new URL('/admin/dashboard', request.url));
     }
 
-    // 3. ROLE-BASED PROTECTION
-    const restrictedPaths = ['/admin/accounts', '/admin/masterlist'];
-    const isTryingToAccessRestricted = restrictedPaths.some(path => pathname.startsWith(path));
+    // 4. ROLE-BASED ACCESS CONTROL
+    if (token) {
+        // STAFF LIMITATIONS
+        if (role === 'Staff') {
+            // Staff cannot access /admin panel or dashboard
+            if (pathname.startsWith('/admin')) {
+                return NextResponse.redirect(new URL('/queue/register', request.url));
+            }
+        }
 
-    if (isTryingToAccessRestricted) {
-        // Only "Super Admin" (or whatever your top-level role is) can pass.
-        // If the role is "Admin" OR "Adviser", they are blocked.
-        const forbiddenRoles = ['Adviser'];
-        const isForbidden = forbiddenRoles.includes(role || '');
-
-        if (isForbidden) {
-            const url = new URL('/admin/dashboard', request.url);
-            url.searchParams.set('error', 'unauthorized_access');
-            return NextResponse.redirect(url);
+        // ADMIN/ADVISER LIMITATIONS
+        const restrictedAdminPaths = ['/admin/accounts', '/admin/masterlist'];
+        if (restrictedAdminPaths.some(path => pathname.startsWith(path))) {
+            if (role === 'Adviser' || role === 'Staff') {
+                const fallback = role === 'Staff' ? '/queue/record' : '/admin/dashboard';
+                return NextResponse.redirect(new URL(fallback, request.url));
+            }
         }
     }
 
@@ -39,5 +55,8 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-    matcher: ['/admin/:path*'],
+    matcher: [
+        '/admin/:path*', 
+        '/queue/:path*' 
+    ],
 };

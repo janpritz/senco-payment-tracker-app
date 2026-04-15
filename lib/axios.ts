@@ -1,9 +1,8 @@
 import axios from 'axios';
 
-
 const api = axios.create({
-    //baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v2', // Adjust this to match your Laravel API URL
-    baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.accsangkaychatbot.com/api/v2',
+    baseURL: 'http://localhost:8000/api/v2', // Adjust this to match your Laravel API URL
+    //baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.accsangkaychatbot.com/api/v2',
     withCredentials: true, // MANDATORY for cookies
     withXSRFToken: true,
     headers: {

@@ -1,6 +1,17 @@
 import Dexie, { Table } from 'dexie';
 
 /**
+ * NEW: QUEUE SYNC TABLE INTERFACE
+ */
+export interface QueueSync {
+    id?: number;
+    student_id: string;
+    full_name: string;
+    college: string;
+    timestamp: number;
+}
+
+/**
  * STUDENT TABLE
  */
 export interface Student {
@@ -32,6 +43,7 @@ export interface Payment {
 export class SencoDatabase extends Dexie {
     students!: Table<Student>;
     payments!: Table<Payment>;
+    queue_sync!: Table<QueueSync>; // <--- ADD THIS LINE HERE
 
     constructor() {
         super('SencoDB');
@@ -85,6 +97,15 @@ export class SencoDatabase extends Dexie {
         this.version(3).stores({
             students: 'student_id, full_name, college',
             payments: '++id, laravel_id, student_id, reference_number, date, sync_status, [student_id+date]'
+        });
+
+        /**
+         * VERSION 4: ADDING INSTANT QUEUE SYNC
+         */
+        this.version(4).stores({
+            students: 'student_id, full_name, college',
+            payments: '++id, laravel_id, student_id, reference_number, date, sync_status, [student_id+date]',
+            queue_sync: '++id, student_id' // Index student_id for quick lookups
         });
     }
 
