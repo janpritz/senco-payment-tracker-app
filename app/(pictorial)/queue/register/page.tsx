@@ -1,13 +1,22 @@
 "use client";
 
+import { useState, useEffect } from 'react';
 import { QueueRegistrationForm } from "@/components/queue/components/queue-registration-form";
-import { StudentQueueTable } from "@/components/queue/components/student-queue-table"; 
+import { StudentQueueTable } from "@/components/queue/components/student-queue-table";
 import { useMasterlistSync } from '@/components/queue/hooks/use-student-search';
 import { useAdminLogin } from '@/hooks/useAdminLogin';
+import { db } from '@/lib/db';
 
 export default function RegistrationPage() {
-  const { isSyncing, syncMasterlist } = useMasterlistSync(); 
-  
+  const { isSyncing, syncMasterlist } = useMasterlistSync();
+
+  const [studentCount, setStudentCount] = useState(0);
+
+  const handleSync = async () => {
+    await syncMasterlist();
+    setStudentCount(await db.students.count());
+  };
+
   // Destructure state and actions from your custom hook
   const { state, actions } = useAdminLogin();
   const { user } = state;
@@ -30,18 +39,23 @@ export default function RegistrationPage() {
         </div>
 
         <div className="flex items-center gap-6">
-          {/* Refresh Masterlist */}
-          <button
-            type="button"
-            onClick={syncMasterlist}
-            disabled={isSyncing}
-            className="text-[10px] font-black text-orange-600 uppercase flex items-center gap-1 hover:text-orange-700 disabled:opacity-50 transition-colors"
-          >
-            {isSyncing ? 'Syncing...' : '↻ Refresh Masterlist'}
-          </button>
+           {/* Student Count & Refresh Masterlist */}
+           <div className="flex items-center gap-4">
+             <div className="text-sm text-slate-600 font-medium">
+               Students: {studentCount}
+             </div>
+             <button
+               type="button"
+               onClick={handleSync}
+               disabled={isSyncing}
+               className="text-[10px] font-black text-orange-600 uppercase flex items-center gap-1 hover:text-orange-700 disabled:opacity-50 transition-colors"
+             >
+               {isSyncing ? 'Syncing...' : '↻ Refresh Masterlist'}
+             </button>
+           </div>
 
-          {/* User Info & Logout */}
-          <div className="flex items-center gap-3 border-l pl-6">
+           {/* User Info & Logout */}
+           <div className="flex items-center gap-3 border-l pl-6">
             <div className="text-right hidden sm:block">
                <p className="text-[10px] font-bold text-slate-400 uppercase">Logged in as</p>
                <p className="text-xs font-black text-slate-700">{user?.name || 'Administrator'}</p>
