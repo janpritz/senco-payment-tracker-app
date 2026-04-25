@@ -19,8 +19,8 @@ export default function DashboardPage() {
   const { data: user } = useSWR("/user", fetcher);
 
   // 2. Define the permission strictly
-  const isAdviser = useMemo(() => {
-    return user?.role?.toLowerCase() === "adviser";
+  const isAdmin = useMemo(() => {
+    return user?.role?.toLowerCase() === "admin";
   }, [user]);
 
   if (loading) return <DashboardSkeleton />;
@@ -38,7 +38,7 @@ export default function DashboardPage() {
       {/* 2. Top Stat Grid */}
       <div className="space-y-6">
         {/* Modular Report Generator Row */}
-        {!isAdviser &&
+        {isAdmin &&
           (<ReportGenerator />
           )}
 

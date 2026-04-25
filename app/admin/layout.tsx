@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 // 1. Added Wallet icon for the Collection page
-import { LayoutDashboard, Receipt, Users, RefreshCw, Menu, X, Wallet, ClipboardList } from "lucide-react";
+import { LayoutDashboard, Receipt, Users, RefreshCw, Menu, X, Wallet, ClipboardList, FileEdit } from "lucide-react";
 import { LogoutButton } from "@/components/logoutButton";
 import { useAdminLogin } from "@/hooks/useAdminLogin";
 // CORRECT IMPORTS: Component from 'next/link', Hooks from 'next/navigation'
@@ -18,6 +18,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const [role, setRole] = useState<string | null>(null);
     const [isOpen, setIsOpen] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
+    // NEW: State for the Narrative Report Modal
+    const [isNarrativeOpen, setIsNarrativeOpen] = useState(false);
 
 
 
@@ -47,6 +49,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     const isAdmin = role === 'Admin';
     const isAdviser = role === 'Adviser';
+    const allowSync = role === 'Auditor' || role === 'Admin';
 
     return (
         <div className="flex min-h-screen bg-slate-50">
@@ -85,6 +88,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         href="/admin/collection"
                         active={pathname === "/admin/collection"}
                     />
+                    {/* NARRATIVE REPORT AS SIDEBAR ITEM */}
+                    {/* <SidebarItem
+                        icon={<FileEdit size={20} />}
+                        label="Daily Narratives"
+                        href="/admin/reports" // Pointing to your new summary page
+                        active={pathname === "/admin/reports"}
+                    /> */}
+
                     {!isAdviser && <SidebarItem
                         icon={<ClipboardList size={20} />}
                         label="Masterlist"
@@ -139,7 +150,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
 
                     <div className="flex items-center gap-2 md:gap-4">
-                        {isAdmin && (
+                        {allowSync && (
                             <button
                                 onClick={handleSync}
                                 disabled={isSyncing}
