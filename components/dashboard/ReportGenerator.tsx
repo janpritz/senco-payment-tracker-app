@@ -226,7 +226,7 @@ export default function ReportGenerator() {
             finalY += 15;
             doc.setFont("helvetica", "bold");
             doc.setFontSize(10);
-            doc.text("Approved by:", 14, finalY);
+            doc.text("Report Summary Received by:", 14, finalY);
 
             finalY += 12;
             doc.text("CLEMELLE L. MONTALLANA, DM, CESE", 14, finalY);
