@@ -29,7 +29,7 @@ function SetupPasswordContent() {
             params.delete("user");
 
             try {
-                const response = await api.get(`/api/password/verify/${user}?${params.toString()}`);
+                const response = await api.get(`/password/verify/${user}?${params.toString()}`);
 
                 if (response.data.valid) {
                     if (response.data.is_active) {
@@ -117,7 +117,7 @@ function SetupPasswordContent() {
                         const params = new URLSearchParams(searchParams.toString());
                         params.delete("user");
 
-                        await api.post(`/api/password/setup/${user}?${params.toString()}`, {
+                        await api.post(`/password/setup/${user}?${params.toString()}`, {
                             password: password,
                             password_confirmation: confirmPassword
                         });
