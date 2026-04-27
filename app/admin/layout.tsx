@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 // 1. Added Wallet icon for the Collection page
-import { LayoutDashboard, Receipt, Users, RefreshCw, Menu, X, Wallet, ClipboardList } from "lucide-react";
+import { LayoutDashboard, Receipt, Users, RefreshCw, Menu, X, Wallet, ClipboardList, FileText } from "lucide-react";
 import { LogoutButton } from "@/components/logoutButton";
 import { useAdminLogin } from "@/hooks/useAdminLogin";
 // CORRECT IMPORTS: Component from 'next/link', Hooks from 'next/navigation'
@@ -104,6 +104,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         label="Transactions"
                         href="/admin/transactions"
                         active={pathname === "/admin/transactions"}
+                    />
+                    <SidebarItem
+                        icon={<FileText size={20} />}
+                        label="Receipts"
+                        href="/admin/receipts"
+                        active={pathname === "/admin/receipts"}
                     />
 
                     {isAdmin && (
