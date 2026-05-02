@@ -1,6 +1,6 @@
 "use client";
 
-import { X, FileDown } from "lucide-react";
+import { X, FileDown, CheckCircle, Clock, Printer } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { fixEncoding } from "@/lib/utils";
@@ -10,6 +10,9 @@ interface Student {
     student_id: string;
     college: string;
     payments?: any[];
+    filing_id?: number;
+    is_claimed: boolean;
+    is_exported: boolean;
 }
 
 interface StudentModalProps {
@@ -28,6 +31,15 @@ export const StudentModal = ({
     type,
 }: StudentModalProps) => {
     if (!isOpen) return null;
+
+    // --- SORTING LOGIC ---
+    // We sort students by filing_id ascending. Students without an ID (N/A) go to the bottom.
+    const sortedStudents = [...students].sort((a, b) => {
+        if (type === "fully_paid") {
+            return (a.filing_id || Infinity) - (b.filing_id || Infinity);
+        }
+        return a.full_name.localeCompare(b.full_name);
+    });
 
     const loadLocalImage = (url: string): Promise<string> => {
         return new Promise((resolve, reject) => {
@@ -48,34 +60,30 @@ export const StudentModal = ({
     const handleDownloadPDF = async () => {
         const doc = new jsPDF();
 
-        // 1. HEADER IMAGE
         try {
             const base64Img = await loadLocalImage("/header_img.png");
             doc.addImage(base64Img, "PNG", 5, 7, 200, 35);
         } catch (e) {
-            console.error("Header image failed:", e);
             doc.setFontSize(18);
             doc.setFont("helvetica", "bold");
             doc.text("SENCO REPORT", 105, 25, { align: "center" });
         }
 
-        // 2. REPORT TITLE & PADDING
         let currentY = 55; 
         const reportTitle = type === "fully_paid" 
-            ? "Full List of Fully Paid Students" 
+            ? "Full List of Fully Paid Students (Sorted by Filing ID)" 
             : "Full List of Zero Payment Students";
 
         doc.setFontSize(14);
         doc.setFont("helvetica", "bold");
-        doc.setTextColor(0, 0, 0);
         doc.text(reportTitle, 105, currentY, { align: "center" });
 
         currentY += 15; 
 
-        // 3. GROUPING LOGIC
+        // PDF Grouping using the SORTED list
         const colleges = ["CASE", "COHME", "CCJE", "CITE"];
         const grouped = colleges.reduce((acc, college) => {
-            acc[college] = students.filter(
+            acc[college] = sortedStudents.filter(
                 (s) => s.college?.toUpperCase() === college
             );
             return acc;
@@ -95,20 +103,22 @@ export const StudentModal = ({
             doc.text(`${college} DEPARTMENT`, 14, currentY);
 
             const tableColumn = type === "fully_paid"
-                ? ["ID", "Name", "Paid Date"]
-                : ["ID", "Name"];
+                ? ["Filing ID", "Student ID", "Name", "Status", "Paid Date"]
+                : ["Student ID", "Name"];
 
             const tableRows = collegeStudents.map((student) => {
                 const row: any[] = [
+                    type === "fully_paid" ? (student.filing_id?.toString().padStart(4, '0') || 'N/A') : null,
                     student.student_id,
                     fixEncoding(student.full_name),
-                ];
+                ].filter(val => val !== null);
 
                 if (type === "fully_paid") {
+                    const status = student.is_claimed ? "CLAIMED" : "UNCLAIMED";
                     const lastPayment = student.payments?.length
                         ? new Date(Math.max(...student.payments.map((p) => new Date(p.created_at).getTime()))).toLocaleDateString()
                         : "N/A";
-                    row.push(lastPayment);
+                    row.push(status, lastPayment);
                 }
                 return row;
             });
@@ -119,10 +129,10 @@ export const StudentModal = ({
                 body: tableRows,
                 theme: "grid",
                 headStyles: {
-                    fillColor: type === "fully_paid" ? [22, 163, 74] : [234, 88, 12],
-                    fontSize: 9,
+                    fillColor: type === "fully_paid" ? [79, 70, 229] : [234, 88, 12],
+                    fontSize: 8,
                 },
-                styles: { fontSize: 8 },
+                styles: { fontSize: 7 },
                 margin: { bottom: 30 }, 
             });
 
@@ -140,31 +150,12 @@ export const StudentModal = ({
             }
         });
 
-        if (!hasData) {
-            doc.setFontSize(12);
-            doc.setTextColor(100);
-            doc.text("No records available.", 105, 80, { align: "center" });
-        }
-
-        // 4. FOOTER (Aligned Left/Right on same line)
         const pageCount = (doc as any).internal.getNumberOfPages();
         for (let i = 1; i <= pageCount; i++) {
             doc.setPage(i);
-            
-            // System Disclaimer (Left Side - Aligned with Page Number Y)
             doc.setTextColor(160, 160, 160);
             doc.setFontSize(7);
-            doc.setFont("helvetica", "normal");
-            doc.text(
-                `System Generated Report on ${new Date().toLocaleString()}.`,
-                14,
-                285,
-                { align: "left" }
-            );
-
-            // Page Number (Right Side - Aligned with Disclaimer Y)
-            doc.setTextColor(200, 200, 200);
-            doc.setFontSize(9);
+            doc.text(`System Generated Report on ${new Date().toLocaleString()}.`, 14, 285);
             doc.text(`Page ${i} of ${pageCount}`, 195, 285, { align: "right" });
         }
 
@@ -172,8 +163,8 @@ export const StudentModal = ({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[80vh] flex flex-col overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[85vh] flex flex-col overflow-hidden">
                 <div className="p-6 border-b flex justify-between items-center bg-gray-50">
                     <div className="flex items-center gap-4">
                         <h2 className="text-xl font-bold text-gray-800">
@@ -187,42 +178,71 @@ export const StudentModal = ({
                             Download Report
                         </button>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="p-2 hover:bg-gray-200 rounded-full transition-colors text-slate-600"
-                    >
+                    <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors text-slate-600">
                         <X size={20} />
                     </button>
                 </div>
 
                 <div className="overflow-y-auto p-6">
-                    <table className="w-full text-left border-collapse">
+                    <table className="w-full text-left border-separate border-spacing-y-2">
                         <thead>
-                            <tr className="border-b-2 border-gray-100 text-gray-500 text-sm uppercase tracking-wider">
-                                <th className="py-3 px-4">College</th>
-                                <th className="py-3 px-4">Name</th>
-                                {type === "fully_paid" && <th className="py-3 px-4">Paid Date</th>}
+                            <tr className="text-gray-500 text-xs uppercase tracking-widest font-bold">
+                                <th className="pb-4 px-4">Filing ID</th>
+                                <th className="pb-4 px-4">Student Info</th>
+                                <th className="pb-4 px-4">College</th>
+                                <th className="pb-4 px-4">Status & Payment</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {students.map((student, idx) => (
-                                <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                                    <td className="py-4 px-4 font-medium text-gray-700">{student.college}</td>
+                        <tbody>
+                            {/* Rendering the SORTED list in the UI */}
+                            {sortedStudents.map((student, idx) => (
+                                <tr key={idx} className="bg-white border border-gray-100 shadow-sm rounded-lg hover:bg-gray-50 transition-all">
                                     <td className="py-4 px-4">
-                                        <div className="font-bold text-gray-900">{fixEncoding(student.full_name)}</div>
-                                        <div className="text-xs text-gray-500">{student.student_id}</div>
+                                        <div className="bg-indigo-50 text-indigo-700 font-mono font-bold text-sm px-3 py-1.5 rounded-md inline-block">
+                                            #{student.filing_id?.toString().padStart(4, '0') || '----'}
+                                        </div>
                                     </td>
-                                    {type === "fully_paid" && (
-                                        <td className="py-4 px-4 text-sm text-gray-600">
-                                            {student.payments?.length
-                                                ? new Date(Math.max(...student.payments.map((p) => new Date(p.created_at).getTime()))).toLocaleDateString()
-                                                : "N/A"}
-                                        </td>
-                                    )}
+                                    <td className="py-4 px-4">
+                                        <div className="font-bold text-gray-900 text-sm">{fixEncoding(student.full_name)}</div>
+                                        <div className="text-xs text-gray-400 font-mono">{student.student_id}</div>
+                                    </td>
+                                    <td className="py-4 px-4">
+                                        <span className="text-sm font-semibold text-gray-600">{student.college}</span>
+                                    </td>
+                                    <td className="py-4 px-4">
+                                        <div className="flex flex-col gap-2">
+                                            <div className="flex gap-2">
+                                                {student.is_claimed ? (
+                                                    <span className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded text-[10px] font-black tracking-tighter uppercase">
+                                                        <CheckCircle size={10} /> Claimed
+                                                    </span>
+                                                ) : (
+                                                    <span className="flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-600 rounded text-[10px] font-black tracking-tighter uppercase">
+                                                        <Clock size={10} /> Unclaimed
+                                                    </span>
+                                                )}
+                                                {student.is_exported && (
+                                                    <span className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-[10px] font-black tracking-tighter uppercase">
+                                                        <Printer size={10} /> Printed
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span className="text-[11px] text-gray-500 italic">
+                                                {student.payments?.length
+                                                    ? `Paid: ${new Date(Math.max(...student.payments.map((p) => new Date(p.created_at).getTime()))).toLocaleDateString()}`
+                                                    : "No payments recorded"}
+                                            </span>
+                                        </div>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
+                    {students.length === 0 && (
+                        <div className="text-center py-12 text-gray-400 font-medium italic">
+                            No records found for this category.
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

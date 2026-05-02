@@ -1,7 +1,10 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import api from "@/lib/axios";
+import { fixEncoding } from "@/lib/utils";
 
-export interface ReceiptData {
+export interface ReceiptClaim {
+    id: number;
     full_name: string;
     student_id: string;
     remaining_balance: number;
@@ -12,32 +15,26 @@ export interface ReceiptData {
     }>;
 }
 
-export const generateFullyPaidReceipts = (students: ReceiptData[]): void => {
-    const fullyPaid = students.filter(s => s.remaining_balance <= 0);
+export const generateFullyPaidReceipts = async (claims: ReceiptClaim[]): Promise<void> => {
+    const sortedClaims = [...claims].sort((a, b) => a.id - b.id);
 
-    if (fullyPaid.length === 0) {
-        alert("No fully paid students found.");
+    if (sortedClaims.length === 0) {
+        alert("No receipt claims found to print.");
         return;
     }
 
-    const doc = new jsPDF({
-        orientation: "portrait",
-        unit: "in",
-        format: "a4",
-    });
+    const idsToMark = sortedClaims.map(c => c.id);
+    const doc = new jsPDF({ orientation: "portrait", unit: "in", format: "a4" });
 
-    // Updated dimensions for 5x2 grid
     const receiptWidth = 3.9;
-    const receiptHeight = 2.15; // Increased height to fill 5 rows
-
+    const receiptHeight = 2.15;
     const margin = 0.15;
     const gap = 0.08;
 
     let col = 0;
     let row = 0;
 
-    fullyPaid.forEach((student) => {
-        // Trigger new page after 5 rows (0-indexed, so row 5 is the start of the 6th row)
+    sortedClaims.forEach((claim) => {
         if (row >= 5) {
             doc.addPage();
             row = 0;
@@ -46,153 +43,123 @@ export const generateFullyPaidReceipts = (students: ReceiptData[]): void => {
 
         const x = margin + (col * (receiptWidth + gap));
         const y = margin + (row * (receiptHeight + gap));
-
         const padding = 0.12;
         const contentWidth = receiptWidth - (padding * 2);
 
-        // Border
+        // --- Border ---
         doc.setDrawColor(0);
         doc.setLineWidth(0.003);
         doc.rect(x, y, receiptWidth, receiptHeight);
 
-        // Header
+        // --- Header ---
         doc.setFont("helvetica", "bold");
         doc.setFontSize(9);
-        doc.text("SENCO OFFICIAL RECEIPT", x + receiptWidth / 2, y + 0.3, {
-            align: "center"
-        });
+        doc.text("SENCO OFFICIAL RECEIPT", x + receiptWidth / 2, y + 0.3, { align: "center" });
 
-        // === Narrative ===
-        const startY = y + 0.55; // Slightly adjusted for taller receipt
+        // === Narrative Section (Fixed Styling) ===
+        const startY = y + 0.55;
         let currentY = startY;
-
-        const name = student.full_name;
+        const name = claim.full_name.toUpperCase();
         const amountText = "FOUR THOUSAND PESOS (P4,000.00)";
-        const fullText = `${name} has paid an amount of ${amountText} as payment for Graduation Contribution.`;
+        
+        doc.setFontSize(9);
+        const lineSpacing = 0.18;
+        const part1 = "This is to certify that ";
+        const part2 = " has paid the amount of ";
+        const part3 = " as payment for Graduation Contribution.";
 
+        let cursorX = x + padding;
+
+        // 1. Part 1
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(11);
+        doc.text(part1, cursorX, currentY);
+        cursorX += doc.getTextWidth(part1);
 
-        const lines = doc.splitTextToSize(fullText, contentWidth);
+        // 2. Name (BOLD + UNDERLINE)
+        doc.setFont("helvetica", "bold");
+        doc.text(fixEncoding(name).toUpperCase(), cursorX, currentY);
+        doc.setLineWidth(0.005);
+        doc.line(cursorX, currentY + 0.02, cursorX + doc.getTextWidth(name), currentY + 0.02);
+        cursorX += doc.getTextWidth(name);
 
-        lines.forEach((line: string) => {
-            let cursorX = x + padding;
+        // 3. Part 2 (Wrap Check)
+        doc.setFont("helvetica", "normal");
+        if (cursorX + doc.getTextWidth(part2) > (x + receiptWidth - padding)) {
+            currentY += lineSpacing;
+            cursorX = x + padding;
+        }
+        doc.text(part2, cursorX, currentY);
+        cursorX += doc.getTextWidth(part2);
 
-            if (line.includes(name)) {
-                const parts = line.split(name);
-                doc.setFont("helvetica", "normal");
-                doc.text(parts[0], cursorX, currentY);
-                cursorX += doc.getTextWidth(parts[0]);
+        // 4. Amount (BOLD + Wrap Check)
+        if (cursorX + doc.getTextWidth(amountText) > (x + receiptWidth - padding)) {
+            currentY += lineSpacing;
+            cursorX = x + padding;
+        }
+        doc.setFont("helvetica", "bold");
+        doc.text(amountText, cursorX, currentY);
+        cursorX += doc.getTextWidth(amountText);
 
-                doc.setFont("helvetica", "bold");
-                doc.text(name, cursorX, currentY);
+        // 5. Part 3 (Wrap Check)
+        doc.setFont("helvetica", "normal");
+        if (cursorX + doc.getTextWidth(part3) > (x + receiptWidth - padding)) {
+            currentY += lineSpacing;
+            cursorX = x + padding;
+        }
+        doc.text(part3, cursorX, currentY);
+        currentY += lineSpacing;
 
-                const nameWidth = doc.getTextWidth(name);
-                doc.setLineWidth(0.002);
-                doc.line(cursorX, currentY + 0.01, cursorX + nameWidth, currentY + 0.01);
-
-                cursorX += nameWidth;
-                doc.setFont("helvetica", "normal");
-                doc.text(parts[1] || "", cursorX, currentY);
-            } else if (line.includes(amountText)) {
-                const parts = line.split(amountText);
-                doc.setFont("helvetica", "normal");
-                doc.text(parts[0], cursorX, currentY);
-                cursorX += doc.getTextWidth(parts[0]);
-
-                doc.setFont("helvetica", "bold");
-                doc.text(amountText, cursorX, currentY);
-                cursorX += doc.getTextWidth(amountText);
-
-                doc.setFont("helvetica", "normal");
-                doc.text(parts[1] || "", cursorX, currentY);
-            } else {
-                doc.setFont("helvetica", "normal");
-                doc.text(line, cursorX, currentY);
-            }
-            currentY += 0.16;
-        });
-
-        // === TABLE ===
-        const tableStartY = currentY + 0.05;
-
+        // --- Payment Table ---
         autoTable(doc, {
-            startY: tableStartY,
+            startY: currentY + 0.05,
             margin: { left: x + padding, right: x + padding },
             tableWidth: contentWidth,
-            styles: {
-                fontSize: 7, // Slightly larger font for the taller layout
-                cellPadding: 0.02,
-                lineWidth: 0.003,
-                fontStyle: 'bold',
-            },
+            styles: { fontSize: 7, cellPadding: 0.02, lineWidth: 0.003, fontStyle: 'bold' },
             head: [['Date', 'Reference No.', 'Amount']],
-            body: student.payments
+            body: claim.payments
                 .filter(p => Number(p.amount) !== 0)
                 .map(p => [
                     new Date(p.created_at).toLocaleString(undefined, {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: 'numeric',
-                        minute: '2-digit',
-                        hour12: true
+                        year: 'numeric', month: '2-digit', day: '2-digit',
+                        hour: 'numeric', minute: '2-digit', hour12: true
                     }),
                     p.reference_number,
-                    `P${Number(p.amount).toLocaleString(undefined, {
-                        minimumFractionDigits: 2
-                    })}`
+                    `P${Number(p.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
                 ]),
             theme: 'grid',
         });
 
-        // === BOTTOM-ALIGNED ELEMENTS ===
+        // --- Footer ---
         const bottomY = y + receiptHeight;
-        const sigY = bottomY - 0.35; // Moved up slightly from the edge
+        const footerBaseline = bottomY - 0.08;
+        const sigY = bottomY - 0.35;
 
-        // Signature line
         doc.setLineWidth(0.003);
-        doc.line(
-            x + receiptWidth - 1.2,
-            sigY,
-            x + receiptWidth - 0.12,
-            sigY
-        );
-
-        // Signature label
+        doc.line(x + receiptWidth - 1.2, sigY, x + receiptWidth - 0.12, sigY);
         doc.setFontSize(6);
-        doc.text("SIGNATURE",
-            x + receiptWidth - 0.65,
-            sigY + 0.07,
-            { align: "center" }
-        );
+        doc.text("SIGNATURE", x + receiptWidth - 0.65, sigY + 0.07, { align: "center" });
 
-        // STATUS
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(8);
-        doc.text("STATUS: FULLY PAID",
-            x + 0.12,
-            sigY
-        );
+        doc.setFont("helvetica", "bold").setFontSize(8);
+        doc.text("STATUS: FULLY PAID", x + 0.12, sigY);
 
-        // 🗓 Generated date
-        const generatedText = `Generated: ${new Date().toLocaleString()}`;
-        doc.setFont("helvetica", "italic");
-        doc.setFontSize(5);
-        doc.text(
-            generatedText,
-            x + 0.12,
-            y + receiptHeight - 0.08
-        );
+        const filingIdStr = `ID: ${claim.id.toString().padStart(4, '0')}`;
+        doc.setFontSize(12);
+        doc.text(filingIdStr, x + 0.12, footerBaseline);
 
-        // GRID FLOW LOGIC
-        if (col === 0) {
-            col = 1;
-        } else {
-            col = 0;
-            row++;
-        }
-    });
+        const timestamp = `Generated: ${new Date().toLocaleString()}`;
+        doc.setFont("helvetica", "italic").setFontSize(5);
+        doc.text(timestamp, x + receiptWidth - 1.2, footerBaseline);
+
+        // Grid Traversal (Inside Loop)
+        if (col === 0) { col = 1; } else { col = 0; row++; }
+    }); // End of forEach
 
     doc.save(`SENCO_Receipts_${new Date().toLocaleDateString()}.pdf`);
+
+    try {
+        await api.post('/admin/receipts/mark-exported', { ids: idsToMark });
+        window.location.reload();
+    } catch (error) {
+        console.error("Failed to update export status:", error);
+    }
 };
