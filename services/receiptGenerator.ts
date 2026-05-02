@@ -26,8 +26,9 @@ export const generateFullyPaidReceipts = (students: ReceiptData[]): void => {
         format: "a4",
     });
 
-    const receiptWidth = 3.7;
-    const receiptHeight = 1.8;
+    // Updated dimensions for 5x2 grid
+    const receiptWidth = 3.9;
+    const receiptHeight = 2.15; // Increased height to fill 5 rows
 
     const margin = 0.15;
     const gap = 0.08;
@@ -36,7 +37,8 @@ export const generateFullyPaidReceipts = (students: ReceiptData[]): void => {
     let row = 0;
 
     fullyPaid.forEach((student) => {
-        if (row > 5) {
+        // Trigger new page after 5 rows (0-indexed, so row 5 is the start of the 6th row)
+        if (row >= 5) {
             doc.addPage();
             row = 0;
             col = 0;
@@ -56,12 +58,12 @@ export const generateFullyPaidReceipts = (students: ReceiptData[]): void => {
         // Header
         doc.setFont("helvetica", "bold");
         doc.setFontSize(9);
-        doc.text("SENCO OFFICIAL RECEIPT", x + receiptWidth / 2, y + 0.25, {
+        doc.text("SENCO OFFICIAL RECEIPT", x + receiptWidth / 2, y + 0.3, {
             align: "center"
         });
 
         // === Narrative ===
-        const startY = y + 0.45;
+        const startY = y + 0.55; // Slightly adjusted for taller receipt
         let currentY = startY;
 
         const name = student.full_name;
@@ -69,7 +71,7 @@ export const generateFullyPaidReceipts = (students: ReceiptData[]): void => {
         const fullText = `${name} has paid an amount of ${amountText} as payment for Graduation Contribution.`;
 
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(9);
+        doc.setFontSize(11);
 
         const lines = doc.splitTextToSize(fullText, contentWidth);
 
@@ -78,7 +80,6 @@ export const generateFullyPaidReceipts = (students: ReceiptData[]): void => {
 
             if (line.includes(name)) {
                 const parts = line.split(name);
-
                 doc.setFont("helvetica", "normal");
                 doc.text(parts[0], cursorX, currentY);
                 cursorX += doc.getTextWidth(parts[0]);
@@ -91,43 +92,37 @@ export const generateFullyPaidReceipts = (students: ReceiptData[]): void => {
                 doc.line(cursorX, currentY + 0.01, cursorX + nameWidth, currentY + 0.01);
 
                 cursorX += nameWidth;
-
                 doc.setFont("helvetica", "normal");
                 doc.text(parts[1] || "", cursorX, currentY);
-
             } else if (line.includes(amountText)) {
                 const parts = line.split(amountText);
-
                 doc.setFont("helvetica", "normal");
                 doc.text(parts[0], cursorX, currentY);
                 cursorX += doc.getTextWidth(parts[0]);
 
                 doc.setFont("helvetica", "bold");
                 doc.text(amountText, cursorX, currentY);
-
                 cursorX += doc.getTextWidth(amountText);
 
                 doc.setFont("helvetica", "normal");
                 doc.text(parts[1] || "", cursorX, currentY);
-
             } else {
                 doc.setFont("helvetica", "normal");
                 doc.text(line, cursorX, currentY);
             }
-
-            currentY += 0.14;
+            currentY += 0.16;
         });
 
         // === TABLE ===
-        const tableStartY = currentY + 0.02;
+        const tableStartY = currentY + 0.05;
 
         autoTable(doc, {
             startY: tableStartY,
             margin: { left: x + padding, right: x + padding },
             tableWidth: contentWidth,
             styles: {
-                fontSize: 5,
-                cellPadding: 0.015,
+                fontSize: 7, // Slightly larger font for the taller layout
+                cellPadding: 0.02,
                 lineWidth: 0.003,
                 fontStyle: 'bold',
             },
@@ -153,7 +148,7 @@ export const generateFullyPaidReceipts = (students: ReceiptData[]): void => {
 
         // === BOTTOM-ALIGNED ELEMENTS ===
         const bottomY = y + receiptHeight;
-        const sigY = bottomY - 0.25;
+        const sigY = bottomY - 0.35; // Moved up slightly from the edge
 
         // Signature line
         doc.setLineWidth(0.003);
@@ -172,27 +167,25 @@ export const generateFullyPaidReceipts = (students: ReceiptData[]): void => {
             { align: "center" }
         );
 
-        // STATUS aligned with signature
+        // STATUS
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(7);
+        doc.setFontSize(8);
         doc.text("STATUS: FULLY PAID",
             x + 0.12,
             sigY
         );
 
-        // 🗓 Generated date (bottom-left note)
+        // 🗓 Generated date
         const generatedText = `Generated: ${new Date().toLocaleString()}`;
-
         doc.setFont("helvetica", "italic");
         doc.setFontSize(5);
-
         doc.text(
             generatedText,
-            x + 0.12,                 // left padding
-            y + receiptHeight - 0.05  // very bottom, safe margin
+            x + 0.12,
+            y + receiptHeight - 0.08
         );
 
-        // ✅ RESTORED GRID FLOW
+        // GRID FLOW LOGIC
         if (col === 0) {
             col = 1;
         } else {
