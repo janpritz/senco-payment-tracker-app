@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useMemo } from "react";
 import api from "@/lib/axios";
-import { db, Student as DbStudent, Payment as DbPayment, formatPaymentForDexie } from '@/lib/db'; 
+import { db, Student as DbStudent, Payment as DbPayment, formatPaymentForDexie } from '@/lib/db';
 import { generateFullyPaidReceipts } from '@/services/receiptGenerator';
 import { FileDown, Printer, Database, UserMinus, RefreshCw } from 'lucide-react';
+import { StudentModal } from "@/components/receipts/StudentModal";
 
 interface StudentWithBalance extends DbStudent {
     payments: DbPayment[];
@@ -68,10 +69,28 @@ const ReportsPage = () => {
     }, []);
 
     const stats = useMemo(() => {
-        const fullyPaid = studentsWithHistory.filter(s => s.remaining_balance <= 0).length;
-        const zeroPayments = studentsWithHistory.filter(s => s.payments.length === 0).length;
-        return { fullyPaid, zeroPayments };
+        const fullyPaidList = studentsWithHistory.filter(s => s.remaining_balance <= 0);
+        const zeroPaymentsList = studentsWithHistory.filter(s => s.payments.length === 0);
+        return {
+            fullyPaid: fullyPaidList.length,
+            fullyPaidData: fullyPaidList,
+            zeroPayments: zeroPaymentsList.length,
+            zeroPaymentsData: zeroPaymentsList
+        };
     }, [studentsWithHistory]);
+
+    const [modalConfig, setModalConfig] = useState<{
+        isOpen: boolean;
+        title: string;
+        type: "fully_paid" | "zero_payment";
+        data: StudentWithBalance[];
+    }>({
+        isOpen: false,
+        title: "",
+        type: "fully_paid",
+        data: []
+    });
+
 
     return (
         <div className="space-y-8">
@@ -88,7 +107,15 @@ const ReportsPage = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 {/* Fully Paid Card */}
-                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
+                <div
+                    onClick={() => setModalConfig({
+                        isOpen: true,
+                        title: "Fully Paid Students",
+                        type: "fully_paid",
+                        data: stats.fullyPaidData
+                    })}
+                    className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4 cursor-pointer hover:border-green-400 hover:shadow-md transition-all"
+                >
                     <div className="p-3 bg-green-50 text-green-600 rounded-lg">
                         <Database size={24} />
                     </div>
@@ -99,7 +126,15 @@ const ReportsPage = () => {
                 </div>
 
                 {/* Zero Payment Card */}
-                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
+                <div
+                    onClick={() => setModalConfig({
+                        isOpen: true,
+                        title: "Zero Payment Students",
+                        type: "zero_payment",
+                        data: stats.zeroPaymentsData
+                    })}
+                    className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4 cursor-pointer hover:border-orange-400 hover:shadow-md transition-all"
+                >
                     <div className="p-3 bg-orange-50 text-orange-600 rounded-lg">
                         <UserMinus size={24} />
                     </div>
@@ -108,7 +143,7 @@ const ReportsPage = () => {
                         <div className="text-2xl font-bold text-orange-600">{stats.zeroPayments}</div>
                     </div>
                 </div>
-                
+
                 {/* Total Sync Card (Optional/Extra) */}
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
                     <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
@@ -120,6 +155,16 @@ const ReportsPage = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Export Options Section omitted for brevity */}
+
+            <StudentModal
+                isOpen={modalConfig.isOpen}
+                onClose={() => setModalConfig({ ...modalConfig, isOpen: false })}
+                title={modalConfig.title}
+                type={modalConfig.type}
+                students={modalConfig.data}
+            />
 
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
                 <div className="p-6 border-b border-gray-100 bg-gray-50/50">
@@ -152,7 +197,7 @@ const ReportsPage = () => {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 
