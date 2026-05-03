@@ -66,8 +66,8 @@ const ReportsPage = () => {
                     <div className="flex gap-4">
                         <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg"><RefreshCw size={24} /></div>
                         <div>
-                            <h3 className="font-bold">Sync Data</h3>
-                            <p className="text-sm text-gray-500">Force update local cache.</p>
+                            <h3 className="font-bold text-slate-500">Sync Data</h3>
+                            <p className="text-sm text-slate-500">Force update local cache.</p>
                         </div>
                     </div>
                     <button onClick={syncAndLoadData} className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700">

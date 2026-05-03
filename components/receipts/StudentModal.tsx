@@ -100,7 +100,7 @@ export const StudentModal = ({
             doc.setFontSize(12);
             doc.setFont("helvetica", "bold");
             doc.setTextColor(40, 40, 40);
-            doc.text(`${college} DEPARTMENT`, 14, currentY);
+            doc.text(`${college}`, 14, currentY);
 
             const tableColumn = type === "fully_paid"
                 ? ["Filing ID", "Student ID", "Name", "Status", "Paid Date"]
