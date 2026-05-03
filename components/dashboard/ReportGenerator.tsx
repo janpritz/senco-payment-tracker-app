@@ -194,10 +194,10 @@ export default function ReportGenerator() {
 
             finalY += 4;
             doc.setFont("helvetica", "normal");
-            doc.text("SENCO, President", c1, finalY);
-            doc.text("SENCO, Treasurer", c2, finalY);
-            doc.text("SENCO, Auditor", c3, finalY);
-            doc.text("SENCO, Auditor", c4, finalY);
+            doc.text("President, SENCO", c1, finalY);
+            doc.text("Treasurer, SENCO", c2, finalY);
+            doc.text("Auditor, SENCO", c3, finalY);
+            doc.text("BS Entrep Representative, SENCO", c4, finalY);
 
             // Noted By
             finalY += 15;
@@ -218,15 +218,15 @@ export default function ReportGenerator() {
 
             finalY += 4;
             doc.setFont("helvetica", "normal");
-            doc.text("SENCO, Adviser", nc1, finalY);
-            doc.text("SENCO, Adviser", nc2, finalY);
-            doc.text("SENCO, Adviser", nc3, finalY);
+            doc.text("Adviser, SENCO", nc1, finalY);
+            doc.text("Adviser, SENCO", nc2, finalY);
+            doc.text("Adviser, SENCO", nc3, finalY);
 
             // Approved By
             finalY += 15;
             doc.setFont("helvetica", "bold");
             doc.setFontSize(10);
-            doc.text("Report Summary Received by:", 14, finalY);
+            doc.text("Summary Report Received by:", 14, finalY);
 
             finalY += 12;
             doc.text("CLEMELLE L. MONTALLANA, DM, CESE", 14, finalY);
