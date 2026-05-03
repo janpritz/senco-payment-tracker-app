@@ -1,4 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+#Axios and Api config
+/lib/axios.ts
+/lib/api.js
 
 # dependencies
 /node_modules
