@@ -52,7 +52,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const allowSync = role === 'Auditor' || role === 'Admin';
 
     return (
-        <div className="flex min-h-screen bg-slate-50">
+        <div className="flex min-h-screen bg-white">
             {/* Mobile Overlay */}
             {isOpen && (
                 <div
@@ -122,7 +122,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         href="/admin/receipts"
                         active={pathname === "/admin/receipts"}
                     />
-
                     {isAdmin && (
                         <SidebarItem
                             icon={<Users size={20} />}
@@ -131,6 +130,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             active={pathname === "/admin/accounts"}
                         />
                     )}
+                    <SidebarItem
+                        icon={<FileText size={20} />}
+                        label="Schedule"
+                        href="/admin/schedule"
+                        active={pathname === "/admin/schedule"}
+                    />
                 </nav>
 
                 <div className="p-4 border-t border-slate-800">
