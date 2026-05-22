@@ -50,10 +50,10 @@ export default function UpcomingEventsList({
   });
 
   return (
-    <div className="max-w-2xl mx-auto py-6 font-sans">
+    <div className="w-full max-w-2xl mx-auto py-4 sm:py-6 px-4 sm:px-0 font-sans">
 
-      <div className="flex items-baseline justify-between mb-5">
-        <h2 className="text-[15px] font-medium text-neutral-900">
+      <div className="flex items-baseline justify-between mb-4 sm:mb-5">
+        <h2 className="text-[14px] sm:text-[15px] font-medium text-neutral-900">
           Upcoming events
         </h2>
         <span className="font-mono text-[10px] text-neutral-400 tracking-wider">
@@ -75,7 +75,7 @@ export default function UpcomingEventsList({
             const { day, mon } = parseDayMonth(ev.start_date);
 
             return (
-                <div
+              <div
                 key={ev.id ?? ''}
                 onMouseEnter={() => onHover(ev.id ?? null)}
                 onMouseLeave={() => onHover(null)}
@@ -83,10 +83,12 @@ export default function UpcomingEventsList({
                 <button
                   onClick={() => onToggle(ev.id ?? null)}
                   aria-expanded={isActive}
-                  className="w-full flex items-center gap-3.5 px-5 py-3.5 text-left hover:bg-neutral-50 transition-colors"
+                  // min-h-[44px] ensures a touch-friendly tap target on mobile
+                  className="w-full min-h-[44px] flex items-center gap-2.5 sm:gap-3.5 px-3.5 sm:px-5 py-3 sm:py-3.5 text-left hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
                 >
-                  <div className="flex flex-col items-center min-w-[34px] shrink-0">
-                    <span className="font-mono text-[17px] font-semibold text-neutral-900 leading-none">
+                  {/* Date badge — slightly smaller on mobile */}
+                  <div className="flex flex-col items-center min-w-[30px] sm:min-w-[34px] shrink-0">
+                    <span className="font-mono text-[15px] sm:text-[17px] font-semibold text-neutral-900 leading-none">
                       {day}
                     </span>
                     <span className="font-mono text-[9px] font-medium uppercase tracking-widest text-neutral-400 mt-0.5">
@@ -94,11 +96,12 @@ export default function UpcomingEventsList({
                     </span>
                   </div>
 
-                  <div className="w-px h-9 shrink-0 bg-[#ebebeb]" />
+                  <div className="w-px h-8 sm:h-9 shrink-0 bg-[#ebebeb]" />
 
+                  {/* Title + time — truncate long titles gracefully */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-[13px] font-medium text-neutral-900 truncate">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-[12px] sm:text-[13px] font-medium text-neutral-900 break-words sm:truncate">
                         {ev.title}
                       </p>
                       {multi && (
@@ -107,8 +110,8 @@ export default function UpcomingEventsList({
                         </span>
                       )}
                     </div>
-                    <p className="font-mono text-[11px] text-neutral-400 flex items-center gap-1 mt-0.5">
-                      <Clock size={11} />
+                    <p className="font-mono text-[10px] sm:text-[11px] text-neutral-400 flex items-center gap-1 mt-0.5">
+                      <Clock size={10} className="sm:w-[11px] sm:h-[11px]" />
                       {multi && ev.end_date
                         ? fmtDateRange(ev.start_date, ev.end_date)
                         : formatEventTime(ev.start_date, ev.end_date)
@@ -116,8 +119,9 @@ export default function UpcomingEventsList({
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="font-mono text-[10px] text-neutral-300">
+                  {/* Index + chevron — hide index on very small screens */}
+                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                    <span className="hidden xs:inline font-mono text-[10px] text-neutral-300">
                       {String(i + 1).padStart(2, '0')}
                     </span>
                     <ChevronDown
@@ -130,21 +134,29 @@ export default function UpcomingEventsList({
                   </div>
                 </button>
 
+                {/* Expanded detail panel — left indent adjusts for mobile */}
                 <div className={cn(
                   'overflow-hidden transition-all duration-[260ms] ease-[cubic-bezier(.4,0,.2,1)]',
                   isActive ? 'max-h-64' : 'max-h-0'
                 )}>
-                  <div className="pb-4 pl-[66px] pr-5">
+                  <div className="pb-4 pl-[52px] sm:pl-[66px] pr-3.5 sm:pr-5">
                     {multi && ev.daily_schedule && ev.daily_schedule.length > 0 && (
                       <div className="flex flex-col gap-1.5 mb-3">
                         {ev.daily_schedule.map((row, j) => (
-                          <div key={j} className="flex items-baseline gap-2 text-[11px]">
-                            <span className="font-mono text-neutral-500 min-w-[80px] shrink-0">
+                          // Stack date/time vertically on mobile, inline on sm+
+                          <div
+                            key={j}
+                            className="flex flex-col xs:flex-row xs:items-baseline gap-0.5 xs:gap-2 text-[11px]"
+                          >
+                            <span className="font-mono text-neutral-500 xs:min-w-[80px] shrink-0">
                               {row.date}
                             </span>
                             <span className="font-mono text-neutral-400">{row.time}</span>
                             {row.label && (
-                              <span className="text-neutral-400">— {row.label}</span>
+                              <span className="text-neutral-400">
+                                <span className="hidden xs:inline">— </span>
+                                {row.label}
+                              </span>
                             )}
                           </div>
                         ))}
@@ -152,11 +164,11 @@ export default function UpcomingEventsList({
                     )}
 
                     {ev.notice_text ? (
-                      <div className="border-l-2 border-neutral-200 pl-3 text-[12px] text-neutral-500 leading-relaxed">
+                      <div className="border-l-2 border-neutral-200 pl-3 text-[11px] sm:text-[12px] text-neutral-500 leading-relaxed">
                         {ev.notice_text}
                       </div>
                     ) : !multi || !ev.daily_schedule ? (
-                      <span className="text-[12px] text-neutral-400 italic">
+                      <span className="text-[11px] sm:text-[12px] text-neutral-400 italic">
                         No additional notice.
                       </span>
                     ) : null}
