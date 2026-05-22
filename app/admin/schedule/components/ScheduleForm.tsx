@@ -13,11 +13,11 @@ interface ScheduleFormProps {
 }
 
 export default function ScheduleForm({ formData, setFormData, onSubmit, isEditing, onCancel, onClose, showHeader = true, containerClassName }: ScheduleFormProps) {
-  const formClassName = containerClassName ?? "bg-white p-6 rounded-lg shadow-sm border border-gray-200 space-y-4";
+  const formClassName = containerClassName ?? "bg-white p-4 sm:p-6 rounded-lg shadow-sm border border-gray-200 space-y-4";
   return (
     <form onSubmit={onSubmit} className={formClassName}>
       {showHeader && <h2 className="text-lg font-semibold text-gray-700">{isEditing ? 'Edit Event' : 'Create New Event'}</h2>}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-600">Event Title</label>
           <input 
@@ -71,7 +71,7 @@ export default function ScheduleForm({ formData, setFormData, onSubmit, isEditin
         <label htmlFor="is_important" className="ml-2 block text-sm text-gray-900">Mark as Urgent Notice</label>
       </div>
 
-      <div className="flex justify-end space-x-2">
+      <div className="flex flex-col sm:flex-row justify-end gap-2">
         {isEditing && (
           <button type="button" onClick={() => { onCancel(); onClose(); }} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">
             Cancel

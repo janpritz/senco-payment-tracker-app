@@ -12,7 +12,7 @@ type Props = {
   showPastEvents: boolean;
   setShowPastEvents: React.Dispatch<React.SetStateAction<boolean>>;
   onHover: (id: number | null) => void;
-  onToggle: (id: number) => void;
+  onToggle: (id: number | null) => void;
 };
 
 export default function PastEventsCarousel({
@@ -32,7 +32,6 @@ export default function PastEventsCarousel({
   return (
     <div className="py-6 font-sans">
 
-      {/* Toggle row */}
       <div className="flex items-center gap-3 mb-4">
         <div className="flex-1 h-px bg-neutral-100" />
         <button
@@ -57,7 +56,6 @@ export default function PastEventsCarousel({
         <div className="flex-1 h-px bg-neutral-100" />
       </div>
 
-      {/* Panel */}
       <div className={cn(
         'overflow-hidden transition-all duration-300 ease-[cubic-bezier(.4,0,.2,1)]',
         showPastEvents ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0'
@@ -68,7 +66,6 @@ export default function PastEventsCarousel({
           </p>
         ) : (
           <div className="relative">
-            {/* Nav arrows */}
             <button
               onClick={() => scroll('left')}
               aria-label="Scroll left"
@@ -84,13 +81,12 @@ export default function PastEventsCarousel({
               <ChevronRight size={14} className="text-neutral-500" />
             </button>
 
-            {/* Track */}
             <div
               ref={trackRef}
               className="flex gap-2.5 overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-9 pb-3 pt-1"
             >
               {pastEvents.map((ev, i) => {
-                if (ev.id === undefined) return null; // Safe guard if id is missing
+                if (ev.id === undefined) return null;
 
                 const isActive = activeEventId === ev.id;
                 return (
@@ -108,7 +104,6 @@ export default function PastEventsCarousel({
                         : 'border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50'
                     )}
                   >
-                    {/* Card header */}
                     <div className="flex items-center justify-between mb-2.5">
                       <span className="font-mono text-[10px] text-neutral-400">
                         {String(i + 1).padStart(2, '0')}
@@ -118,12 +113,10 @@ export default function PastEventsCarousel({
                       </span>
                     </div>
 
-                    {/* Title */}
                     <p className="text-[13px] font-medium text-neutral-900 leading-snug mb-2">
                       {ev.title}
                     </p>
 
-                    {/* Date + time */}
                     <p className="font-mono text-[11px] text-neutral-400 flex items-center gap-1 mb-1">
                       <Calendar size={11} />
                       {formatEventDate(ev.start_date, ev.end_date)}
@@ -133,7 +126,6 @@ export default function PastEventsCarousel({
                       {formatEventTime(ev.start_date, ev.end_date)}
                     </p>
 
-                    {/* Inline notice on expand */}
                     {isActive && (
                       <div className="mt-2.5 pt-2.5 border-t border-neutral-100 text-[12px] text-neutral-500 leading-relaxed">
                         {ev.notice_text ?? 'No additional notice.'}

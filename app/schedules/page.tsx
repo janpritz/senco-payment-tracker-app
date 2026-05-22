@@ -14,7 +14,6 @@ export default function PublicTimelinePage() {
       <div className="max-w-7xl mx-auto">
         <TimelineHeader />
 
-        {/* Past Events */}
         {timeline.pastEvents.length > 0 && (
           <PastEventsCarousel
             pastEvents={timeline.pastEvents}
@@ -26,10 +25,8 @@ export default function PublicTimelinePage() {
           />
         )}
 
-        {/* Current Event */}
         <CurrentEventCard events={timeline.todayEvents} now={timeline.now} />
 
-        {/* Upcoming */}
         {timeline.futureEvents.length > 0 && (
           <UpcomingEventsList
             futureEvents={timeline.futureEvents}

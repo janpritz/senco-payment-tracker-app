@@ -3,17 +3,18 @@ import { useState, useEffect, useMemo } from 'react';
 import { GraduationSchedule } from '@/types/graduation';
 import { GraduationApi } from '@/lib/graduation';
 import { isEventNow, isEventPast, getTodayEvents } from '@/app/schedules/utils/graduation';
+import { getManilaTime } from '@/app/schedules/utils/timezone';
 
 export function useGraduationTimeline() {
     const [schedules, setSchedules] = useState<GraduationSchedule[]>([]);
     const [hoveredId, setHoveredId] = useState<number | null>(null);
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [showPastEvents, setShowPastEvents] = useState(false);
-    const [now, setNow] = useState<Date>(new Date());
+    const [now, setNow] = useState<Date>(getManilaTime());
 
-    // Live clock
+    // Live clock - using Manila time
     useEffect(() => {
-        const timer = setInterval(() => setNow(new Date()), 1000);
+        const timer = setInterval(() => setNow(getManilaTime()), 1000);
         return () => clearInterval(timer);
     }, []);
 
@@ -52,11 +53,10 @@ export function useGraduationTimeline() {
 
     const activeEventId = selectedId ?? hoveredId;
 
-    const toggleSelect = (id: number) => {
+    const toggleSelect = (id: number | null) => {
         setSelectedId(prev => (prev === id ? null : id));
     };
 
-    // In useGraduationTimeline.ts
     return {
         now,
         currentEvent,
@@ -65,7 +65,7 @@ export function useGraduationTimeline() {
         todayEvents,
         activeEventId,
         showPastEvents,
-        setShowPastEvents,           // ← This is already React.Dispatch<React.SetStateAction<boolean>>
+        setShowPastEvents,
         hoveredId,
         setHoveredId,
         toggleSelect,

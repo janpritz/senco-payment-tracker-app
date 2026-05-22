@@ -1,5 +1,6 @@
 // app/schedules/utils/graduation.ts
 import { GraduationSchedule } from '@/types/graduation';
+import { formatManilaDate, formatManilaTime, getManilaTime } from './timezone';
 
 export const formatEventDate = (startStr: string, endStr?: string | null): string => {
   const start = new Date(startStr);
@@ -10,19 +11,23 @@ export const formatEventDate = (startStr: string, endStr?: string | null): strin
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+    timeZone: 'Asia/Manila',
   };
 
   if (!end || start.toDateString() === end.toDateString()) {
-    return start.toLocaleDateString('en-US', dateOptions);
+    return formatManilaDate(startStr, dateOptions);
   }
 
-  return `${start.toLocaleDateString('en-US', { 
+  const endDateStr = endStr!;
+  return `${formatManilaDate(startStr, { 
     month: 'short', 
-    day: 'numeric' 
-  })} - ${end.toLocaleDateString('en-US', { 
+    day: 'numeric',
+    timeZone: 'Asia/Manila'
+  })} - ${formatManilaDate(endDateStr, { 
     month: 'short', 
     day: 'numeric', 
-    year: 'numeric' 
+    year: 'numeric',
+    timeZone: 'Asia/Manila'
   })}`;
 };
 
@@ -30,13 +35,10 @@ export const formatEventTime = (startStr: string, endStr?: string | null): strin
   const start = new Date(startStr);
   const end = endStr ? new Date(endStr) : null;
 
-  if (!end || start.toDateString() === end.toDateString()) {
-    const options: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' };
-    return `${start.toLocaleTimeString('en-US', options)}${
-      end ? ` - ${end.toLocaleTimeString('en-US', options)}` : ''
-    }`;
-  }
-  return '';
+  const options: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Manila' };
+  return `${formatManilaTime(startStr, options)}${
+    end ? ` - ${formatManilaTime(endStr!, options)}` : ''
+  }`;
 };
 
 export const isEventNow = (event: GraduationSchedule, now: Date): boolean => {

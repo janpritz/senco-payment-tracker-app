@@ -5,9 +5,10 @@ import { formatEventDate, formatEventTime, isEventNow, isEventPast } from '@/app
 import { ChevronDown, Calendar } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { getManilaTime } from '@/app/schedules/utils/timezone';
 
 type Props = {
-  events: GraduationSchedule[]; // already filtered by getTodayEvents()
+  events: GraduationSchedule[];
   now: Date;
 };
 
@@ -43,16 +44,17 @@ export default function CurrentEventCard({ events, now }: Props) {
   const [openId, setOpenId] = useState<number | null>(null);
 
   useEffect(() => {
-    const tick = () => setClock(new Date().toLocaleString('en-US', {
+    const tick = () => setClock(getManilaTime().toLocaleString('en-US', {
       weekday: 'short', month: 'short', day: 'numeric',
       hour: '2-digit', minute: '2-digit', second: '2-digit',
+      timeZone: 'Asia/Manila',
     }));
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, []);
 
-  const toggle = (id: number) => setOpenId(prev => prev === id ? null : id);
+  const toggle = (id: number | null) => setOpenId(prev => prev === id ? null : id);
 
   const ongoingCount = events.filter(ev => isEventNow(ev, now)).length;
 
@@ -65,7 +67,6 @@ export default function CurrentEventCard({ events, now }: Props) {
 
   return (
     <div className="flex justify-center mb-16">
-      {/* Animated Border & High-Highlight Deep Shadow Wrapper */}
       <div 
         className={cn(
           "relative w-full max-w-2xl p-[1px] rounded-xl overflow-hidden bg-neutral-200 transition-all duration-500",
@@ -74,15 +75,12 @@ export default function CurrentEventCard({ events, now }: Props) {
             : "shadow-2xl shadow-neutral-200/80"
         )}
       >
-        {/* Animated Gradient Line Border (Fires only when events are active right now) */}
         {ongoingCount > 0 && (
           <div className="absolute inset-0 -m-[100%] animate-[spin_5s_linear_infinite] bg-[conic-gradient(from_0deg,transparent_40%,#10b981_70%,transparent_100%)]" />
         )}
 
-        {/* Core Card Container */}
         <div className="relative w-full rounded-[11px] overflow-hidden bg-white font-sans z-10">
 
-          {/* Topbar */}
           <div className="flex items-center justify-between px-5 py-2.5 bg-neutral-50 border-b border-neutral-100">
             <div className="flex items-center gap-2">
               <span className="relative flex h-[7px] w-[7px]">
@@ -103,7 +101,6 @@ export default function CurrentEventCard({ events, now }: Props) {
             </div>
           </div>
 
-          {/* Body */}
           {events.length === 0 ? (
             <div className="text-center py-10 px-6">
               <span className="inline-block font-mono text-[10px] font-semibold uppercase tracking-widest text-neutral-400 border border-neutral-200 rounded-full px-3 py-1 mb-4">
@@ -116,7 +113,6 @@ export default function CurrentEventCard({ events, now }: Props) {
             <ul className="divide-y divide-neutral-100">
               {grouped.map(({ status, items }) => (
                 <div key={`group-${status}`}>
-                  {/* Section divider */}
                   <li className="border-b border-neutral-100">
                     <div className="flex items-center gap-3 px-5 py-2 bg-white">
                       <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-400">
@@ -126,16 +122,15 @@ export default function CurrentEventCard({ events, now }: Props) {
                     </div>
                   </li>
 
-                  {/* Event rows */}
                   {items.map((ev, i) => {
-                    if (ev.id === undefined) return null; // Safe guard if id is missing
+                    if (ev.id === undefined) return null;
                     
                     const isOpen = openId === ev.id;
                     const globalIdx = events.indexOf(ev) + 1;
                     return (
-                      <li key={ev.id} className="border-b border-neutral-100 last:border-0 bg-white">
+                      <li key={ev.id ?? ''} className="border-b border-neutral-100 last:border-0 bg-white">
                         <button
-                          onClick={() => toggle(ev.id!)}
+                          onClick={() => toggle(ev.id ?? null)}
                           aria-expanded={isOpen}
                           className="w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-neutral-50 transition-colors"
                         >
@@ -165,16 +160,11 @@ export default function CurrentEventCard({ events, now }: Props) {
                           />
                         </button>
 
-                        {/* Expandable detail */}
                         <div className={cn(
                           'overflow-hidden transition-all duration-[260ms] ease-[cubic-bezier(.4,0,.2,1)]',
                           isOpen ? 'max-h-52' : 'max-h-0'
                         )}>
                           <div className="px-5 pb-4 pl-[50px]">
-                            {/* <p className="font-mono text-[11px] text-neutral-400 mb-2 flex items-center gap-1.5">
-                              <Calendar size={12} />
-                              {formatEventDate(ev.start_date, ev.end_date)}
-                            </p> */}
                             {ev.notice_text ? (
                               <div className="border-l-2 border-neutral-200 pl-3 text-[13px] text-neutral-500 leading-relaxed">
                                 {ev.notice_text}
@@ -191,16 +181,6 @@ export default function CurrentEventCard({ events, now }: Props) {
               ))}
             </ul>
           )}
-
-          {/* Footer */}
-          {/* <div className="flex items-center gap-2 px-5 py-2.5 bg-neutral-50 border-t border-neutral-100">
-            <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-400">graduation schedule</span>
-            <span className="w-1 h-1 rounded-full bg-neutral-300" />
-            <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-400">
-              {ongoingCount > 0 ? 'ongoing' : events.length > 0 ? 'between events' : 'idle'}
-            </span>
-          </div> */}
-
         </div>
       </div>
     </div>

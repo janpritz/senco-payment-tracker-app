@@ -7,16 +7,16 @@ type Props = {
   event: GraduationSchedule;
   isActive: boolean;
   onHover: (id: number | null) => void;
-  onClick: (id: number) => void;
+  onClick: (id: number | null) => void;
   variant?: 'past' | 'upcoming';
 };
 
 export default function EventCard({ event, isActive, onHover, onClick, variant = 'upcoming' }: Props) {
   return (
     <div
-      onMouseEnter={() => onHover(event.id!)}
+      onMouseEnter={() => onHover(event.id ?? null)}
       onMouseLeave={() => onHover(null)}
-      onClick={() => onClick(event.id!)}
+      onClick={() => onClick(event.id ?? null)}
       className={`bg-white rounded-3xl border overflow-hidden cursor-pointer transition-all duration-300 ${isActive
         ? 'border-emerald-400 shadow-2xl scale-[1.01]'
         : 'border-gray-200 hover:border-emerald-200 hover:shadow-lg'

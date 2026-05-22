@@ -34,11 +34,11 @@ export default function ScheduleModal({
         onClick={onClose}
       />
 
-      <div className="relative bg-white w-full max-w-2xl rounded-[32px] shadow-2xl overflow-hidden border border-slate-100">
+      <div className="relative bg-white w-full max-w-2xl rounded-[32px] shadow-2xl overflow-hidden border border-slate-100 max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="px-8 py-5 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
+        <div className="px-6 sm:px-8 py-4 sm:py-5 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
           <div>
-            <h2 className="text-xl font-black text-slate-900 tracking-tight uppercase">
+            <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight uppercase">
               {isEditing ? "Edit Graduation Event" : "New Graduation Event"}
             </h2>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
@@ -53,7 +53,7 @@ export default function ScheduleModal({
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           <ScheduleForm
             formData={formData}
             setFormData={setFormData}
