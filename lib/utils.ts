@@ -1,4 +1,7 @@
-// @/lib/stringUtils.ts
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+export const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 
 /**
  * Fixes common encoding issues (e.g., "Ã±" becoming "ñ").
