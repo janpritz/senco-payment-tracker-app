@@ -46,8 +46,7 @@ export default function UpcomingEventsList({
 
   const filteredEvents = futureEvents.filter(ev => {
     const start = new Date(ev.start_date);
-    const end = ev.end_date ? new Date(ev.end_date) : start;
-    return start > todayEnd || end < now;
+    return start > todayEnd;
   });
 
   return (
